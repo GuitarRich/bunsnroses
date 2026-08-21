@@ -287,9 +287,11 @@ const TRACKS=[
 ["Little Sister","Queens of the Stone Age",174,2005,161,2],["Make It Wit Chu","Queens of the Stone Age",290,2007,91,2]
 ];
 const TARGET={1:45*60,2:60*60};
+const MAX_PER_ARTIST=2;
 const BAND=["Rich","Joel","Anders","Pete"];
-const VERSION="v10";
+const VERSION="v11";
 const CHANGES={
+ "v11":"Each setlist takes at most 2 songs from any one artist, votes or not",
  "v10":"Hosted on Vercel with a Google Sheet backend \u2014 votes sync for everyone",
  "v9":"Pool stored inside your own record; timestamps settle conflicts; storage check panel",
  "v8":"Imports save every voter, not just yours",
@@ -580,6 +582,23 @@ function scored(){
     return {...s,sum,n};
   });
 }
+function artistKey(a){return String(a||"").trim().toLowerCase();}
+/** Vote order, then pack: max 2 songs per artist, then fill remaining time. */
+function packSet(rows,s){
+  const ranked=rows.filter(r=>r.set===s).sort((a,b)=>b.sum-a.sum||b.n-a.n||a.dur-b.dur);
+  const keep=[],rest=[];
+  const nBy={};
+  let run=0,full=false;
+  ranked.forEach(r=>{
+    const a=artistKey(r.artist);
+    if((nBy[a]||0)>=MAX_PER_ARTIST){rest.push(r);return;}
+    if(full||run+r.dur>TARGET[s]){full=true;rest.push(r);return;}
+    keep.push(r);
+    nBy[a]=(nBy[a]||0)+1;
+    run+=r.dur;
+  });
+  return {keep,rest,run};
+}
 function showResults(){
   const y=window.scrollY;
   $("vote").classList.add("hide");$("results").classList.remove("hide");
@@ -590,21 +609,18 @@ function showResults(){
     : "No votes recorded yet.";
   const rows=scored(),box=$("sets");box.innerHTML="";
   [1,2].forEach(s=>{
-    const list=rows.filter(r=>r.set===s).sort((a,b)=>b.sum-a.sum||b.n-a.n||a.dur-b.dur);
-    let run=0,cutAt=list.length;
-    list.forEach((r,k)=>{if(run+r.dur<=TARGET[s])run+=r.dur;else if(cutAt===list.length)cutAt=k;});
+    const {keep,rest,run}=packSet(rows,s);
     const el=document.createElement("div");el.className="set";
     el.innerHTML='<div class="sethead"><h3>Set '+s+' &mdash; '+(s===1?"70s / 80s":"90s and after")+'</h3>'+
       '<div class="clock mono">'+mmss(run)+' / '+mmss(TARGET[s])+'</div></div>'+
       '<div class="meter"><i style="width:'+Math.min(run/TARGET[s]*100,100)+'%"></i>'+
       '<div class="ticks">'+'<span></span>'.repeat(s===1?9:12)+'</div></div>'+
-      '<div class="meterfoot"><span>0:00</span><span>'+cutAt+' songs fit</span><span>'+mmss(TARGET[s])+'</span></div>'+
+      '<div class="meterfoot"><span>0:00</span><span>'+keep.length+' songs fit \u00b7 max 2 per artist</span><span>'+mmss(TARGET[s])+'</span></div>'+
       '<div class="legend">'+who.map(n=>'<i>'+n.slice(0,3).toUpperCase()+'</i>').join("")+'<i style="width:26px"></i></div>';
     const body=document.createElement("div");
-    list.forEach((r,k)=>{
-      if(k===cutAt){const d=document.createElement("div");d.className="divider";d.textContent="below the line";body.appendChild(d);}
+    const addRow=(r,k,cut)=>{
       const row=document.createElement("button");
-      row.className="row"+(k>=cutAt?" cut":"")+(openRow===r.k?" open":"");
+      row.className="row"+(cut?" cut":"")+(openRow===r.k?" open":"");
       const cells=who.map(n=>{
         const v=pool[n][r.k];
         return '<div class="cell '+(v===undefined?"none":"v"+v)+(n===me_?" mine":"")+'">'+(v===undefined?"\u00b7":v)+'</div>';
@@ -628,7 +644,12 @@ function showResults(){
         });
         body.appendChild(ed);
       }
-    });
+    };
+    keep.forEach((r,k)=>addRow(r,k,false));
+    if(rest.length){
+      const d=document.createElement("div");d.className="divider";d.textContent="below the line";body.appendChild(d);
+      rest.forEach((r,k)=>addRow(r,keep.length+k,true));
+    }
     el.appendChild(body);box.appendChild(el);
   });
   drawCustom();
@@ -651,9 +672,7 @@ function put(text,btn,okTxt){
 $("copySet").onclick=()=>{
   const rows=scored();let out="BUN'S & ROSES \u2014 SETLIST  ("+VERSION+")\n";
   [1,2].forEach(s=>{
-    const list=rows.filter(r=>r.set===s).sort((a,b)=>b.sum-a.sum||b.n-a.n||a.dur-b.dur);
-    let run=0;const keep=[];
-    list.forEach(r=>{if(run+r.dur<=TARGET[s]){run+=r.dur;keep.push(r);}});
+    const {keep,run}=packSet(rows,s);
     out+="\nSET "+s+" ("+mmss(run)+")\n\n";
     keep.forEach((r,k)=>{out+=(k+1)+". "+r.name+" - "+r.artist+"\n";});
   });
