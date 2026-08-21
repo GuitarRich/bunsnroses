@@ -161,6 +161,7 @@
       <div class="names" id="names"></div>
       <input id="nameIn" placeholder="Or type your name" maxlength="18" autocomplete="off">
       <input id="secretIn" placeholder="Access code" type="password" autocomplete="off" style="margin-top:8px">
+      <p class="note" style="margin-top:8px">Same value as <b>APP_SECRET</b> in Vercel. Clicking a name will not skip this.</p>
       <button class="go disp" id="start">Start voting</button>
       <p class="note" id="verNote" style="margin-top:11px"></p>
       <div id="gateErr" class="err hide"></div>
@@ -406,7 +407,7 @@ async function pull(){
   }catch(e){storageOK=false;lastErr=e.message||String(e);log("load failed: "+lastErr);setStatus();return false;}
 }
 async function push(){
-  if(!me_)return;
+  if(!me_)return false;
   try{
     const r=await fetch(API,{
       method:"POST",
@@ -422,8 +423,9 @@ async function push(){
     if(!r.ok||!d.ok)throw new Error(d.error||("HTTP "+r.status));
     absorb(d);storageOK=true;lastErr="";
     log("saved "+Object.keys(myVotes).length+" votes to the sheet");
-  }catch(e){storageOK=false;lastErr=e.message||String(e);log("save failed: "+lastErr);}
-  setStatus();
+    setStatus();
+    return true;
+  }catch(e){storageOK=false;lastErr=e.message||String(e);log("save failed: "+lastErr);setStatus();return false;}
 }
 async function pushOthers(){
   let saved=0,failed=0;
@@ -444,7 +446,11 @@ function setStatus(){
   const el=$("status");
   if(storageOK===null){el.textContent="Checking";el.className="status";return;}
   if(storageOK){el.textContent="Saved";el.className="status ok";$("banner").classList.add("hide");}
-  else{
+  else if(/wrong access code/i.test(lastErr||"")){
+    el.textContent="Wrong code";el.className="status warn";
+    $("banner").innerHTML="<b>Wrong access code.</b> Type the exact <b>APP_SECRET</b> from Vercel, then tap Start.";
+    $("banner").classList.remove("hide");
+  }else{
     el.textContent="Not saving";el.className="status warn";
     $("banner").innerHTML="<b>Not reaching the server"+(lastErr?" \u2014 "+lastErr:"")+".</b> Your votes are safe in this tab but won't sync. Check your connection, or go to Standings and tap <b>Copy my code</b> so nothing is lost.";
     $("banner").classList.remove("hide");
@@ -458,6 +464,7 @@ BAND.forEach(n=>{const b=document.createElement("button");b.textContent=n;
   b.onclick=()=>{$("nameIn").value=n;begin();};$("names").appendChild(b);});
 $("start").onclick=begin;
 $("nameIn").addEventListener("keydown",e=>{if(e.key==="Enter")begin();});
+$("secretIn").addEventListener("keydown",e=>{if(e.key==="Enter")begin();});
 
 async function begin(){
   const n=$("nameIn").value.trim();
@@ -467,6 +474,7 @@ async function begin(){
     if(n)localStorage.setItem("br_name",n);
   }catch(e){}
   if(!n){$("gateErr").textContent="Type a name so your votes can be told apart.";$("gateErr").classList.remove("hide");return;}
+  if(!secret){$("gateErr").textContent="Enter the access code (APP_SECRET in Vercel), then tap Start.";$("gateErr").classList.remove("hide");$("secretIn").focus();return;}
   me_=n;$("gateErr").classList.add("hide");
   $("gate").classList.add("hide");$("vote").classList.remove("hide");
   await pull();
@@ -474,7 +482,13 @@ async function begin(){
   const found=Object.keys(myVotes).length;
   const u=firstUnscored();idx=u<0?0:u;
   writeHash();render();
-  await push();
+  const saved=await push();
+  if(!saved&&/wrong access code/i.test(lastErr||"")){
+    $("vote").classList.add("hide");$("gate").classList.remove("hide");
+    $("gateErr").textContent="Wrong access code. Use the exact APP_SECRET value from Vercel.";
+    $("gateErr").classList.remove("hide");$("secretIn").focus();$("secretIn").select();
+    return;
+  }
   if(found)toast("Picked up where you left off \u2014 <b>"+found+"</b> of "+LIST.length+" already scored.");
 }
 const firstUnscored=()=>LIST.findIndex(s=>myVotes[s.k]===undefined);

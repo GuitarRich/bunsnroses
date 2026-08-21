@@ -2,6 +2,17 @@ import { readAll, writeVoter, writeSongs, writeGrid, readBody } from "./_sheets.
 
 const OWNER = (process.env.OWNER_NAME || "Rich").toLowerCase();
 
+function appSecret() {
+  let s = (process.env.APP_SECRET || "").trim();
+  if (
+    (s.startsWith('"') && s.endsWith('"')) ||
+    (s.startsWith("'") && s.endsWith("'"))
+  ) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
 
@@ -15,7 +26,8 @@ export default async function handler(req, res) {
       const body = await readBody(req);
       const { secret, name, votes, ts, version, custom, songs } = body || {};
 
-      if (process.env.APP_SECRET && secret !== process.env.APP_SECRET) {
+      const expected = appSecret();
+      if (expected && String(secret || "").trim() !== expected) {
         return res.status(401).json({ ok: false, error: "Wrong access code." });
       }
       if (!name || typeof name !== "string") {
