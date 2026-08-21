@@ -7,7 +7,7 @@
     --lamp:#F5A623;--hot:#E4572E;--ok:#7FA650;--line:rgba(237,230,214,.12);--line2:rgba(237,230,214,.06)}
   *{box-sizing:border-box;margin:0;padding:0}
   #sv{background:var(--stage);color:var(--cream);font-family:'Barlow',system-ui,sans-serif;min-height:100vh;padding:0 0 48px;-webkit-font-smoothing:antialiased}
-  #sv .wrap{max-width:660px;margin:0 auto;padding:0 18px}
+  #sv .wrap{max-width:720px;margin:0 auto;padding:0 18px}
   #sv .disp{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.04em;line-height:.95}
   #sv .mono{font-family:'IBM Plex Mono',monospace}
   #sv button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
@@ -96,7 +96,7 @@
   #sv .cell.v0{background:transparent;color:var(--dim);border-color:var(--line)}
   #sv .cell.none{background:transparent;color:rgba(140,131,119,.4);border-style:dashed}
   #sv .cell.mine{outline:1px solid var(--cream);outline-offset:1px}
-  #sv .rs{font-size:13px;font-weight:600;width:26px;text-align:right;flex:none;color:var(--lamp);padding-right:3px}
+  #sv .rs{font-size:13px;font-weight:600;width:36px;text-align:right;flex:none;color:var(--lamp);padding-right:3px}
   #sv .legend{display:flex;gap:4px;justify-content:flex-end;margin-bottom:6px;font-size:9px;color:var(--dim);letter-spacing:.1em}
   #sv .legend i{width:23px;text-align:center;font-style:normal;font-family:'IBM Plex Mono',monospace}
 
@@ -131,6 +131,29 @@
   #sv .crow span{color:var(--dim);font-size:11px;flex:none}
   #sv .crow button{color:var(--hot);font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;font-family:'Barlow Condensed',sans-serif;flex:none}
   #sv .tag{font-size:9px;letter-spacing:.1em;padding:2px 5px;border:1px solid var(--lamp);color:var(--lamp);border-radius:2px;margin-left:7px;vertical-align:middle;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
+  #sv .tag.cap{border-color:var(--hot);color:var(--hot)}
+  #sv .tag.neg{border-color:var(--dim);color:var(--dim)}
+  #sv .orderbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:10px 12px;border:1px solid var(--line);border-radius:2px;background:var(--panel);font-size:12px;color:var(--dim)}
+  #sv .orderbar b{color:var(--lamp);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-size:11px}
+  #sv .orderbar.unsaved b{color:var(--hot)}
+  #sv .orderbar.saved b{color:var(--ok)}
+  #sv .orderbar button{padding:6px 10px;border:1px solid var(--line);border-radius:2px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600;color:var(--dim)}
+  #sv .orderbar button:hover{color:var(--lamp);border-color:var(--lamp)}
+  #sv .runhead,.rankhead{font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;font-family:'Barlow Condensed',sans-serif;color:var(--dim);margin:14px 0 6px}
+  #sv .handle{width:18px;flex:none;color:var(--dim);cursor:grab;font-size:14px;letter-spacing:-2px;text-align:center;user-select:none}
+  #sv .row.dragging{opacity:.45}
+  #sv .arrows{display:flex;flex-direction:column;gap:2px;flex:none}
+  #sv .arrows button{width:22px;height:16px;border:1px solid var(--line);border-radius:2px;color:var(--dim);font-size:9px;line-height:1}
+  #sv .arrows button:hover:not(:disabled){color:var(--lamp);border-color:var(--lamp)}
+  #sv .arrows button:disabled{opacity:.25;cursor:default}
+  #sv .links{display:flex;gap:8px;margin-top:3px;flex-wrap:wrap}
+  #sv .links a{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);text-decoration:none;font-family:'Barlow Condensed',sans-serif}
+  #sv .links a:hover{color:var(--lamp)}
+  #sv .fail{border-color:rgba(228,87,46,.45);background:rgba(228,87,46,.08);color:var(--cream);margin-bottom:12px}
+  #sv .tagsel{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;font-size:12px;color:var(--dim)}
+  #sv .tagsel label{display:flex;align-items:center;gap:5px;border:1px solid var(--line);padding:7px 10px;border-radius:2px;cursor:pointer}
+  #sv .tagsel input{width:auto;accent-color:var(--lamp)}
+  #sv .addgrid.meta{grid-template-columns:1fr 1fr}
   #sv .filerow{display:flex;align-items:center;gap:11px;margin:9px 0}
   #sv .filerow label{cursor:pointer;flex:none;margin:0}
   #sv .filerow input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
@@ -157,7 +180,7 @@
     <div id="gate" class="gate">
       <div class="eyebrow">Step one</div>
       <h2 class="disp">Who's voting?</h2>
-      <p class="note">63 songs. Two sets, 45 and 60 minutes. Score what you have an opinion on, skip the rest, change your mind whenever. Your votes are saved into this page's web address as you go &mdash; refreshing won't lose them.</p>
+      <p class="note">63 songs. Two sets, 45 and 60 minutes. Score what you have an opinion on, skip the rest, change your mind whenever. Pass is a veto: it outweighs two Yes votes. Existing Pass votes now count that way.</p>
       <div class="names" id="names"></div>
       <input id="nameIn" placeholder="Or type your name" maxlength="18" autocomplete="off">
       <input id="secretIn" placeholder="Access code" type="password" autocomplete="off" style="margin-top:8px">
@@ -180,7 +203,7 @@
         <button data-v="3"><b>Must play</b><span>Fight me on it</span></button>
         <button data-v="2"><b>Yes</b><span>Happy to play it</span></button>
         <button data-v="1"><b>Maybe</b><span>If it fits</span></button>
-        <button data-v="0"><b>Pass</b><span>Leave it off</span></button>
+        <button data-v="0"><b>Pass</b><span>Leave it off &mdash; outweighs two Yes votes</span></button>
       </div>
       <div class="steps">
         <button id="prev">&larr; Previous</button>
@@ -223,6 +246,25 @@
             <input id="aArtist" placeholder="Artist" maxlength="40">
             <input id="aDur" placeholder="Length (3:45)" maxlength="6">
             <select id="aSet"><option value="1">Set 1 &mdash; 70s / 80s</option><option value="2">Set 2 &mdash; 90s and after</option></select>
+            <select id="aEnergy">
+              <option value="">Energy (leave blank)</option>
+              <option value="1">1 &mdash; lowest</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5 &mdash; highest</option>
+            </select>
+            <select id="aLead">
+              <option value="">Lead vocal (optional)</option>
+              <option>Rich</option><option>Joel</option><option>Anders</option><option>Pete</option>
+            </select>
+          </div>
+          <div class="tagsel" id="aTags">
+            <label><input type="checkbox" value="opener"> Opener</label>
+            <label><input type="checkbox" value="closer"> Closer</label>
+            <label><input type="checkbox" value="ballad"> Ballad</label>
+            <label><input type="checkbox" value="dedication"> Dedication</label>
+            <label><input type="checkbox" value="slow"> Slow</label>
           </div>
           <button class="btn" id="addTrack">Add to the list</button>
           <div id="addMsg"></div>
@@ -251,46 +293,81 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import {
+  TARGET, MAX_PER_ARTIST, voteWeight, scoreSongs, generateSet,
+  searchLinks, parseLen, mmss as fmtTime, moveKey
+} from "./setlist.js";
+
 const TRACKS=[
-["I Wanna Be Your Dog","The Stooges",189,1969,121,1],["Green River","Creedence Clearwater Revival",154,1969,142,1],
-["Born On The Bayou","Creedence Clearwater Revival",315,1969,117,1],["Fortunate Son","Creedence Clearwater Revival",141,1969,133,1],
-["Mississippi Queen","Mountain",151,1970,140,1],["Run Through The Jungle","Creedence Clearwater Revival",185,1970,137,1],
-["War Pigs","Black Sabbath",474,1970,91,1],["Bang a Gong (Get It On)","T. Rex",262,1971,127,1],
-["Baba O'Riley","The Who",300,1971,117,1],["Back In the Saddle","Aerosmith",280,1976,122,1],
-["Rock And Roll All Nite","KISS",168,1975,144,1],["Beat on the Brat","Ramones",152,1976,157,1],
-["Blitzkrieg Bop","Ramones",133,1976,177,1],["Liar","Sex Pistols",162,1977,150,1],
-["Pretty Vacant","Sex Pistols",198,1977,145,1],["Holidays in the Sun","Sex Pistols",203,1977,148,1],
-["Let There Be Rock","AC/DC",367,1977,182,1],["Riff Raff","AC/DC",313,1978,185,1],
-["Fat Bottomed Girls","Queen",256,1978,88,1],["Rock 'n' Roll","Motorhead",228,1987,124,1],
-["Delivering the Goods","Judas Priest",258,1979,158,1],["Stay Clean","Motorhead",160,1979,145,1],
-["See Me Burning","Motorhead",180,1979,161,1],["Jamie's Cryin'","Van Halen",210,1978,128,1],
-["Dance the Night Away","Van Halen",188,1979,129,1],["China Girl","David Bowie",257,1983,134,1],
-["Sharp Dressed Man","ZZ Top",258,1983,125,1],["For Whom The Bell Tolls","Metallica",310,1984,117,1],
-["Kiss","Prince",226,1986,111,1],
-["School","Nirvana",162,1989,164,2],["We Die Young","Alice In Chains",152,1990,125,2],
-["Rusty Cage","Soundgarden",266,1991,101,2],["Slaves & Bulldozers","Soundgarden",416,1991,130,2],
-["Territorial Pissings","Nirvana",143,1991,182,2],["Sad But True","Metallica",325,1991,89,2],
-["Dam That River","Alice In Chains",189,1992,124,2],["Them Bones","Alice In Chains",149,1992,165,2],
-["Would?","Alice In Chains",207,1992,100,2],["Wicked Garden","Stone Temple Pilots",245,1992,153,2],
-["Piece of Pie","Stone Temple Pilots",324,1992,146,2],["Creep","Stone Temple Pilots",334,1992,107,2],
-["Frances Farmer Will Have Her Revenge On Seattle","Nirvana",250,1993,117,2],["Dissident","Pearl Jam",215,1993,146,2],
-["Sabotage","Beastie Boys",178,1994,168,2],["Machinehead","Bush",256,1994,171,2],
-["Superunknown","Soundgarden",307,1994,133,2],["Let Me Drown","Soundgarden",233,1994,187,2],
-["Spin the Black Circle","Pearl Jam",168,1994,217,2],["Hey Man, Nice Shot","Filter",314,1995,177,2],
-["Where Boys Fear To Tread","The Smashing Pumpkins",264,1995,113,2],["Bound For The Floor","Local H",223,1996,119,2],
-["Trippin' on a Hole in a Paper Heart","Stone Temple Pilots",176,1996,106,2],["Freak","Silverchair",226,1997,118,2],
-["Testify","Rage Against The Machine",210,1999,117,2],["Sleep Now In the Fire","Rage Against The Machine",206,1999,127,2],
-["The Everlasting Gaze","The Smashing Pumpkins",241,2000,146,2],["Bleed American","Jimmy Eat World",181,2001,160,2],
-["Gasoline","Audioslave",279,2002,92,2],["Cochise","Audioslave",222,2002,80,2],
-["Medication","Queens of the Stone Age",114,2002,165,2],["Slither","Velvet Revolver",248,2004,141,2],
-["Little Sister","Queens of the Stone Age",174,2005,161,2],["Make It Wit Chu","Queens of the Stone Age",290,2007,91,2]
+["I Wanna Be Your Dog","The Stooges",189,1969,121,1,4,"opener",""],
+["Green River","Creedence Clearwater Revival",154,1969,142,1,4,"",""],
+["Born On The Bayou","Creedence Clearwater Revival",315,1969,117,1,3,"",""],
+["Fortunate Son","Creedence Clearwater Revival",141,1969,133,1,4,"",""],
+["Mississippi Queen","Mountain",151,1970,140,1,4,"",""],
+["Run Through The Jungle","Creedence Clearwater Revival",185,1970,137,1,4,"",""],
+["War Pigs","Black Sabbath",474,1970,91,1,2,"slow",""],
+["Bang a Gong (Get It On)","T. Rex",262,1971,127,1,4,"",""],
+["Baba O'Riley","The Who",300,1971,117,1,5,"opener",""],
+["Back In the Saddle","Aerosmith",280,1976,122,1,4,"",""],
+["Rock And Roll All Nite","KISS",168,1975,144,1,5,"closer",""],
+["Beat on the Brat","Ramones",152,1976,157,1,4,"",""],
+["Blitzkrieg Bop","Ramones",133,1976,177,1,5,"opener",""],
+["Liar","Sex Pistols",162,1977,150,1,4,"",""],
+["Pretty Vacant","Sex Pistols",198,1977,145,1,4,"",""],
+["Holidays in the Sun","Sex Pistols",203,1977,148,1,4,"",""],
+["Let There Be Rock","AC/DC",367,1977,182,1,5,"closer",""],
+["Riff Raff","AC/DC",313,1978,185,1,5,"",""],
+["Fat Bottomed Girls","Queen",256,1978,88,1,3,"",""],
+["Rock 'n' Roll","Motorhead",228,1987,124,1,4,"",""],
+["Delivering the Goods","Judas Priest",258,1979,158,1,4,"",""],
+["Stay Clean","Motorhead",160,1979,145,1,4,"",""],
+["See Me Burning","Motorhead",180,1979,161,1,4,"",""],
+["Jamie's Cryin'","Van Halen",210,1978,128,1,3,"",""],
+["Dance the Night Away","Van Halen",188,1979,129,1,3,"",""],
+["China Girl","David Bowie",257,1983,134,1,3,"",""],
+["Sharp Dressed Man","ZZ Top",258,1983,125,1,4,"",""],
+["For Whom The Bell Tolls","Metallica",310,1984,117,1,4,"",""],
+["Kiss","Prince",226,1986,111,1,3,"",""],
+["School","Nirvana",162,1989,164,2,5,"opener",""],
+["We Die Young","Alice In Chains",152,1990,125,2,4,"",""],
+["Rusty Cage","Soundgarden",266,1991,101,2,4,"",""],
+["Slaves & Bulldozers","Soundgarden",416,1991,130,2,3,"",""],
+["Territorial Pissings","Nirvana",143,1991,182,2,5,"",""],
+["Sad But True","Metallica",325,1991,89,2,3,"",""],
+["Dam That River","Alice In Chains",189,1992,124,2,4,"",""],
+["Them Bones","Alice In Chains",149,1992,165,2,5,"",""],
+["Would?","Alice In Chains",207,1992,100,2,2,"slow",""],
+["Wicked Garden","Stone Temple Pilots",245,1992,153,2,4,"",""],
+["Piece of Pie","Stone Temple Pilots",324,1992,146,2,4,"",""],
+["Creep","Stone Temple Pilots",334,1992,107,2,2,"ballad,slow",""],
+["Frances Farmer Will Have Her Revenge On Seattle","Nirvana",250,1993,117,2,3,"",""],
+["Dissident","Pearl Jam",215,1993,146,2,4,"",""],
+["Sabotage","Beastie Boys",178,1994,168,2,5,"opener",""],
+["Machinehead","Bush",256,1994,171,2,5,"",""],
+["Superunknown","Soundgarden",307,1994,133,2,3,"",""],
+["Let Me Drown","Soundgarden",233,1994,187,2,4,"",""],
+["Spin the Black Circle","Pearl Jam",168,1994,217,2,5,"",""],
+["Hey Man, Nice Shot","Filter",314,1995,177,2,4,"",""],
+["Where Boys Fear To Tread","The Smashing Pumpkins",264,1995,113,2,3,"",""],
+["Bound For The Floor","Local H",223,1996,119,2,4,"",""],
+["Trippin' on a Hole in a Paper Heart","Stone Temple Pilots",176,1996,106,2,4,"",""],
+["Freak","Silverchair",226,1997,118,2,3,"",""],
+["Testify","Rage Against The Machine",210,1999,117,2,5,"",""],
+["Sleep Now In the Fire","Rage Against The Machine",206,1999,127,2,5,"closer",""],
+["The Everlasting Gaze","The Smashing Pumpkins",241,2000,146,2,4,"",""],
+["Bleed American","Jimmy Eat World",181,2001,160,2,4,"",""],
+["Gasoline","Audioslave",279,2002,92,2,3,"",""],
+["Cochise","Audioslave",222,2002,80,2,5,"opener",""],
+["Medication","Queens of the Stone Age",114,2002,165,2,4,"",""],
+["Slither","Velvet Revolver",248,2004,141,2,4,"",""],
+["Little Sister","Queens of the Stone Age",174,2005,161,2,4,"",""],
+["Make It Wit Chu","Queens of the Stone Age",290,2007,91,2,2,"slow",""]
 ];
-const TARGET={1:45*60,2:60*60};
-const MAX_PER_ARTIST=2;
 const BAND=["Rich","Joel","Anders","Pete"];
-const VERSION="v11";
+const VERSION="v12";
 const CHANGES={
+ "v12":"Pass is a veto (\u22124). Weighted scores, generated running order, max 2 per artist still applies",
  "v11":"Each setlist takes at most 2 songs from any one artist, votes or not",
  "v10":"Hosted on Vercel with a Google Sheet backend \u2014 votes sync for everyone",
  "v9":"Pool stored inside your own record; timestamps settle conflicts; storage check panel",
@@ -309,14 +386,33 @@ const LABEL={3:"Must play",2:"Yes",1:"Maybe",0:"Pass"};
 const NB=TRACKS.length;                 // built-in count (positions never change)
 
 let me_=null, myVotes={}, pool={}, custom=[], idx=0, openRow=null, storageOK=null;
+let draftOrder={1:null,2:null}, savedOrder={1:null,2:null}, dragSet=null, dragFrom=-1;
 const $=id=>document.getElementById(id);
-const mmss=s=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+const mmss=fmtTime;
 const slug=n=>n.toLowerCase().replace(/[^a-z0-9]/g,"")||"x";
 const keyOf=(t,a)=>slug(t)+"-"+slug(a);
+const ORDER_KEY=s=>"br_order_"+s;
+function loadSavedOrders(){
+  try{
+    [1,2].forEach(s=>{
+      const raw=localStorage.getItem(ORDER_KEY(s));
+      savedOrder[s]=raw?JSON.parse(raw):null;
+    });
+  }catch(e){}
+}
+function persistSaved(s){
+  try{
+    if(savedOrder[s]&&savedOrder[s].length)localStorage.setItem(ORDER_KEY(s),JSON.stringify(savedOrder[s]));
+    else localStorage.removeItem(ORDER_KEY(s));
+  }catch(e){}
+}
+function songMeta(t){
+  return {energy:t[6]||0,tags:t[7]||"",lead:t[8]||""};
+}
 
 /* full list = built-ins (key b0..bN) then added songs (key from name+artist) */
 function songs(){
-  const out=TRACKS.map((t,i)=>({k:"b"+i,name:t[0],artist:t[1],dur:t[2],year:t[3],bpm:t[4],set:t[5]}));
+  const out=TRACKS.map((t,i)=>({k:"b"+i,name:t[0],artist:t[1],dur:t[2],year:t[3],bpm:t[4],set:t[5],...songMeta(t)}));
   custom.slice().sort((a,b)=>a.k<b.k?-1:1).forEach(c=>out.push({...c,added:true}));
   return out;
 }
@@ -327,7 +423,7 @@ const relist=()=>{LIST=songs();};
 function esc(x){return String(x).replace(/[~|;^!]/g,"");}
 function mkCode(name,v){
   let bs="";for(let i=0;i<NB;i++)bs+=(v["b"+i]===undefined?".":v["b"+i]);
-  const defs=custom.map(c=>[c.k,esc(c.name),esc(c.artist),c.dur,c.set].join("^")).join(";");
+  const defs=custom.map(c=>[c.k,esc(c.name),esc(c.artist),c.dur,c.set,c.energy||"",esc(c.tags||""),esc(c.lead||"")].join("^")).join(";");
   const cv=custom.filter(c=>v[c.k]!==undefined).map(c=>c.k+":"+v[c.k]).join(",");
   return "BR2-"+esc(name)+"~"+bs+"|"+defs+"|"+cv;
 }
@@ -338,7 +434,9 @@ function rdCode(raw){
     const v={};
     for(let i=0;i<NB&&i<m[2].length;i++){const ch=m[2][i];if(ch>="0"&&ch<="3")v["b"+i]=+ch;}
     const defs=m[3]?m[3].split(";").filter(Boolean).map(d=>{
-      const f=d.split("^");return f.length>=5?{k:f[0],name:f[1],artist:f[2],dur:+f[3],set:+f[4]}:null;
+      const f=d.split("^");
+      if(f.length<5)return null;
+      return {k:f[0],name:f[1],artist:f[2],dur:+f[3],set:+f[4],energy:+f[5]||0,tags:f[6]||"",lead:f[7]||""};
     }).filter(Boolean):[];
     (m[4]?m[4].split(","):[]).forEach(pair=>{
       const f=pair.split(":");if(f.length===2&&f[1]!=="")v[f[0]]=+f[1];
@@ -356,7 +454,7 @@ function rdCode(raw){
 function mergeDefs(defs){
   let added=0;
   defs.forEach(d=>{
-    if(!custom.some(c=>c.k===d.k)){custom.push({k:d.k,name:d.name,artist:d.artist,dur:d.dur,set:d.set});added++;}
+    if(!custom.some(c=>c.k===d.k)){custom.push({k:d.k,name:d.name,artist:d.artist,dur:d.dur,set:d.set,energy:d.energy||"",tags:d.tags||"",lead:d.lead||""});added++;}
   });
   if(added)relist();
   return added;
@@ -535,14 +633,17 @@ $("addTrack").onclick=()=>{
   const title=$("aTitle").value.trim(),artist=$("aArtist").value.trim(),
         durRaw=$("aDur").value.trim(),set=+$("aSet").value,m=$("addMsg");
   if(!title||!artist){m.className="err";m.textContent="Needs a title and an artist.";return;}
-  const dm=durRaw.match(/^(\d+):([0-5]\d)$/);
-  if(!dm){m.className="err";m.textContent="Length should look like 3:45.";return;}
-  const dur=+dm[1]*60+ +dm[2];
+  const dur=parseLen(durRaw);
+  if(!dur){m.className="err";m.textContent="Length should look like 3:45.";return;}
   const k=keyOf(title,artist);
   if(custom.some(c=>c.k===k)||TRACKS.some(t=>keyOf(t[0],t[1])===k)){
     m.className="err";m.textContent="That song is already on the list.";return;}
-  custom.push({k,name:title,artist,dur,set});relist();
-  $("aTitle").value="";$("aArtist").value="";$("aDur").value="";
+  const energy=+$("aEnergy").value||"";
+  const lead=$("aLead").value.trim();
+  const tags=[...$("aTags").querySelectorAll("input:checked")].map(i=>i.value).join(",");
+  custom.push({k,name:title,artist,dur,set,energy,tags,lead});relist();
+  $("aTitle").value="";$("aArtist").value="";$("aDur").value="";$("aEnergy").value="";$("aLead").value="";
+  $("aTags").querySelectorAll("input").forEach(i=>i.checked=false);
   m.className="okmsg";m.textContent='Added "'+title+'". It sits at the end of the list \u2014 nobody\'s votes moved.';
   persist();showResults();
 };
@@ -560,7 +661,8 @@ function drawCustom(){
   custom.slice().sort((a,b)=>a.k<b.k?-1:1).forEach(c=>{
     const anyVotes=Object.keys(pool).some(n=>pool[n][c.k]!==undefined);
     const row=document.createElement("div");row.className="crow";
-    row.innerHTML='<b>'+c.name+'</b><span>'+c.artist+'</span><span>'+mmss(c.dur)+'</span><span>Set '+c.set+'</span>';
+    row.innerHTML='<b>'+c.name+'</b><span>'+c.artist+'</span><span>'+mmss(c.dur)+'</span><span>Set '+c.set+'</span>'+
+      (c.energy?'<span>E'+c.energy+'</span>':'')+(c.lead?'<span>'+c.lead+'</span>':'');
     if(owner){
       const rm=document.createElement("button");
       rm.textContent=anyVotes?"Voted":"Remove";rm.disabled=anyVotes;
@@ -574,30 +676,36 @@ function drawCustom(){
 
 /* ---------- standings ---------- */
 function voters(){return Object.keys(pool).filter(n=>Object.keys(pool[n]).length);}
-function scored(){
-  const who=voters();
-  return LIST.map(s=>{
-    let sum=0,n=0;
-    who.forEach(v=>{if(pool[v][s.k]!==undefined){sum+=pool[v][s.k];n++;}});
-    return {...s,sum,n};
-  });
+function scored(){return scoreSongs(LIST,pool);}
+function orderKeysFor(s){return draftOrder[s]||savedOrder[s]||null;}
+function orderMode(s,autoKeys){
+  const auto=(autoKeys||[]).join("\0");
+  const effective=draftOrder[s]||savedOrder[s];
+  if(draftOrder[s]){
+    const baseline=(savedOrder[s]||autoKeys||[]).join("\0");
+    if(draftOrder[s].join("\0")!==baseline)return "unsaved";
+  }
+  if(savedOrder[s]&&savedOrder[s].length){
+    if(savedOrder[s].join("\0")===auto)return "automatic";
+    return "saved";
+  }
+  return "automatic";
 }
-function artistKey(a){return String(a||"").trim().toLowerCase();}
-/** Vote order, then pack: max 2 songs per artist, then fill remaining time. */
-function packSet(rows,s){
-  const ranked=rows.filter(r=>r.set===s).sort((a,b)=>b.sum-a.sum||b.n-a.n||a.dur-b.dur);
-  const keep=[],rest=[];
-  const nBy={};
-  let run=0,full=false;
-  ranked.forEach(r=>{
-    const a=artistKey(r.artist);
-    if((nBy[a]||0)>=MAX_PER_ARTIST){rest.push(r);return;}
-    if(full||run+r.dur>TARGET[s]){full=true;rest.push(r);return;}
-    keep.push(r);
-    nBy[a]=(nBy[a]||0)+1;
-    run+=r.dur;
-  });
-  return {keep,rest,run};
+function setDraft(s,keys){draftOrder[s]=keys.slice();showResults();}
+function songTags(r){
+  let html=r.added?'<span class="tag">Added</span>':"";
+  if(r.why==="CAP")html+='<span class="tag cap">CAP</span>';
+  if(r.why==="neg")html+='<span class="tag neg">veto</span>';
+  return html;
+}
+function linkRow(r){
+  const L=searchLinks(r);
+  return '<div class="links">'+
+    '<a href="'+L.ug+'" target="_blank" rel="noopener">Guitar</a>'+
+    '<a href="'+L.songsterr+'" target="_blank" rel="noopener">Bass</a>'+
+    '<a href="'+L.musescore+'" target="_blank" rel="noopener">Score</a>'+
+    '<a href="'+L.genius+'" target="_blank" rel="noopener">Lyrics</a>'+
+    '</div>';
 }
 function showResults(){
   const y=window.scrollY;
@@ -609,51 +717,133 @@ function showResults(){
     : "No votes recorded yet.";
   const rows=scored(),box=$("sets");box.innerHTML="";
   [1,2].forEach(s=>{
-    const {keep,rest,run}=packSet(rows,s);
+    const gen=generateSet(rows,s,{orderKeys:orderKeysFor(s)});
     const el=document.createElement("div");el.className="set";
+    if(!gen.ok){
+      el.innerHTML='<div class="sethead"><h3>Set '+s+' &mdash; '+(s===1?"70s / 80s":"90s and after")+'</h3></div>'+
+        '<div class="banner fail">'+gen.error+'</div>';
+      box.appendChild(el);
+      return;
+    }
+    const run=gen.ordered.reduce((a,r)=>a+r.dur,0);
+    const autoKeys=gen.auto.map(r=>r.k);
+    const mode=orderMode(s,autoKeys);
+    const modeLabel=mode==="unsaved"?"unsaved local change":mode==="saved"?"saved on this browser":"automatic";
     el.innerHTML='<div class="sethead"><h3>Set '+s+' &mdash; '+(s===1?"70s / 80s":"90s and after")+'</h3>'+
       '<div class="clock mono">'+mmss(run)+' / '+mmss(TARGET[s])+'</div></div>'+
       '<div class="meter"><i style="width:'+Math.min(run/TARGET[s]*100,100)+'%"></i>'+
       '<div class="ticks">'+'<span></span>'.repeat(s===1?9:12)+'</div></div>'+
-      '<div class="meterfoot"><span>0:00</span><span>'+keep.length+' songs fit \u00b7 max 2 per artist</span><span>'+mmss(TARGET[s])+'</span></div>'+
-      '<div class="legend">'+who.map(n=>'<i>'+n.slice(0,3).toUpperCase()+'</i>').join("")+'<i style="width:26px"></i></div>';
-    const body=document.createElement("div");
-    const addRow=(r,k,cut)=>{
+      '<div class="meterfoot"><span>0:00</span><span>'+gen.ordered.length+' songs \u00b7 max '+MAX_PER_ARTIST+' per artist</span><span>'+mmss(TARGET[s])+'</span></div>';
+
+    const bar=document.createElement("div");
+    bar.className="orderbar "+mode;
+    bar.innerHTML='<span>Running order: <b>'+modeLabel+'</b></span>';
+    if(mode==="unsaved"){
+      const save=document.createElement("button");save.textContent="Save for this browser";
+      save.onclick=()=>{savedOrder[s]=(draftOrder[s]||gen.ordered.map(r=>r.k)).slice();draftOrder[s]=null;persistSaved(s);showResults();};
+      const revert=document.createElement("button");revert.textContent="Back to automatic";
+      revert.onclick=()=>{draftOrder[s]=null;savedOrder[s]=null;persistSaved(s);showResults();};
+      bar.appendChild(save);bar.appendChild(revert);
+    }else if(mode==="saved"){
+      const revert=document.createElement("button");revert.textContent="Back to automatic";
+      revert.onclick=()=>{draftOrder[s]=null;savedOrder[s]=null;persistSaved(s);showResults();};
+      bar.appendChild(revert);
+    }
+    el.appendChild(bar);
+
+    const runHead=document.createElement("div");runHead.className="runhead";runHead.textContent="Generated setlist";
+    el.appendChild(runHead);
+    const runBody=document.createElement("div");
+    gen.ordered.forEach((r,k)=>{
+      const row=document.createElement("div");
+      row.className="row"+(openRow===r.k?" open":"");
+      row.draggable=true;
+      row.dataset.k=r.k;
+      row.innerHTML='<div class="handle" title="Drag">:::</div>'+
+        '<div class="arrows">'+
+          '<button data-dir="-1" '+(k===0?"disabled":"")+'>&#9650;</button>'+
+          '<button data-dir="1" '+(k===gen.ordered.length-1?"disabled":"")+'>&#9660;</button>'+
+        '</div>'+
+        '<div class="rk mono">'+(k+1)+'</div><div class="rt"><b>'+r.name+(r.added?'<span class="tag">Added</span>':"")+'</b><span>'+r.artist+
+        (r.lead?" \u00b7 "+r.lead:"")+'</span>'+linkRow(r)+'</div>'+
+        '<div class="rd mono">'+mmss(r.dur)+'</div>'+
+        '<div class="rs mono">'+r.sum+'</div>';
+      row.querySelectorAll(".arrows button").forEach(btn=>{
+        btn.onclick=e=>{
+          e.stopPropagation();
+          const dir=+btn.dataset.dir;
+          const keys=gen.ordered.map(x=>x.k);
+          setDraft(s,moveKey(keys,k,k+dir));
+        };
+      });
+      row.ondragstart=e=>{
+        dragSet=s;dragFrom=k;
+        row.classList.add("dragging");
+        e.dataTransfer.effectAllowed="move";
+        e.dataTransfer.setData("text/plain",r.k);
+      };
+      row.ondragend=()=>row.classList.remove("dragging");
+      row.ondragover=e=>{e.preventDefault();e.dataTransfer.dropEffect="move";};
+      row.ondrop=e=>{
+        e.preventDefault();
+        if(dragSet!==s||dragFrom<0||dragFrom===k)return;
+        const keys=gen.ordered.map(x=>x.k);
+        setDraft(s,moveKey(keys,dragFrom,k));
+        dragSet=null;dragFrom=-1;
+      };
+      row.onclick=e=>{
+        if(e.target.closest("a,button,.handle"))return;
+        openRow=openRow===r.k?null:r.k;showResults();
+      };
+      runBody.appendChild(row);
+      if(openRow===r.k)runBody.appendChild(voteEditor(r));
+    });
+    el.appendChild(runBody);
+
+    const rankHead=document.createElement("div");rankHead.className="rankhead";rankHead.textContent="Ranking \u2014 full pool";
+    el.appendChild(rankHead);
+    const legend=document.createElement("div");legend.className="legend";
+    legend.innerHTML=who.map(n=>'<i>'+n.slice(0,3).toUpperCase()+'</i>').join("")+'<i style="width:36px"></i>';
+    el.appendChild(legend);
+    const rankBody=document.createElement("div");
+    const addRank=(r,k,cut)=>{
       const row=document.createElement("button");
       row.className="row"+(cut?" cut":"")+(openRow===r.k?" open":"");
       const cells=who.map(n=>{
         const v=pool[n][r.k];
         return '<div class="cell '+(v===undefined?"none":"v"+v)+(n===me_?" mine":"")+'">'+(v===undefined?"\u00b7":v)+'</div>';
       }).join("");
-      row.innerHTML='<div class="rk mono">'+(k+1)+'</div><div class="rt"><b>'+r.name+(r.added?'<span class="tag">Added</span>':"")+'</b><span>'+r.artist+'</span></div>'+
+      row.innerHTML='<div class="rk mono">'+(k+1)+'</div><div class="rt"><b>'+r.name+songTags(r)+'</b><span>'+r.artist+'</span></div>'+
         '<div class="rd mono">'+mmss(r.dur)+'</div><div class="grid">'+cells+'</div>'+
         '<div class="rs mono">'+r.sum+'</div>';
       row.onclick=()=>{openRow=openRow===r.k?null:r.k;showResults();};
-      body.appendChild(row);
-      if(openRow===r.k){
-        const ed=document.createElement("div");ed.className="editor";
-        ed.innerHTML='<div class="lbl">Your vote &mdash; '+r.name+'</div><div class="opts"></div>';
-        const opts=ed.querySelector(".opts");
-        [3,2,1,0].forEach(v=>{
-          const b=document.createElement("button");b.dataset.v=v;b.textContent=LABEL[v];
-          if(myVotes[r.k]===v)b.classList.add("on");
-          b.onclick=e=>{e.stopPropagation();
-            if(myVotes[r.k]===v)delete myVotes[r.k];else myVotes[r.k]=v;
-            pool[me_]=myVotes;persist();showResults();};
-          opts.appendChild(b);
-        });
-        body.appendChild(ed);
-      }
+      rankBody.appendChild(row);
+      if(openRow===r.k)rankBody.appendChild(voteEditor(r));
     };
-    keep.forEach((r,k)=>addRow(r,k,false));
-    if(rest.length){
-      const d=document.createElement("div");d.className="divider";d.textContent="below the line";body.appendChild(d);
-      rest.forEach((r,k)=>addRow(r,keep.length+k,true));
+    gen.keep.forEach((r,k)=>addRank(r,k,false));
+    if(gen.rest.length){
+      const d=document.createElement("div");d.className="divider";d.textContent="below the line";rankBody.appendChild(d);
+      gen.rest.forEach((r,k)=>addRank(r,gen.keep.length+k,true));
     }
-    el.appendChild(body);box.appendChild(el);
+    el.appendChild(rankBody);
+    box.appendChild(el);
   });
   drawCustom();
   window.scrollTo(0,y);
+}
+function voteEditor(r){
+  const ed=document.createElement("div");ed.className="editor";
+  ed.innerHTML='<div class="lbl">Your vote \u2014 '+r.name+'</div><div class="opts"></div>';
+  const opts=ed.querySelector(".opts");
+  [3,2,1,0].forEach(v=>{
+    const b=document.createElement("button");b.dataset.v=v;b.textContent=LABEL[v];
+    if(myVotes[r.k]===v)b.classList.add("on");
+    b.onclick=e=>{e.stopPropagation();
+      if(myVotes[r.k]===v)delete myVotes[r.k];else myVotes[r.k]=v;
+      pool[me_]=myVotes;persist();showResults();};
+    opts.appendChild(b);
+  });
+  return ed;
 }
 
 /* ---------- exports & pooling ---------- */
@@ -672,9 +862,12 @@ function put(text,btn,okTxt){
 $("copySet").onclick=()=>{
   const rows=scored();let out="BUN'S & ROSES \u2014 SETLIST  ("+VERSION+")\n";
   [1,2].forEach(s=>{
-    const {keep,run}=packSet(rows,s);
+    const gen=generateSet(rows,s,{orderKeys:orderKeysFor(s)});
+    const list=gen.ok?gen.ordered:[];
+    const run=list.reduce((a,r)=>a+r.dur,0);
     out+="\nSET "+s+" ("+mmss(run)+")\n\n";
-    keep.forEach((r,k)=>{out+=(k+1)+". "+r.name+" - "+r.artist+"\n";});
+    if(!gen.ok){out+=gen.error+"\n";return;}
+    list.forEach((r,k)=>{out+=(k+1)+". "+r.name+" - "+r.artist+"\n";});
   });
   put(out,$("copySet"),"Copied");
 };
@@ -684,8 +877,9 @@ $("copyRaw").onclick=()=>{
   LIST.forEach(t=>{
     const v=who.map(n=>pool[n][t.k]===undefined?"":pool[n][t.k]);
     const cast=v.filter(x=>x!=="");
+    const total=cast.reduce((a,b)=>a+voteWeight(b),0);
     csv+='"'+t.name.replace(/"/g,'""')+'","'+t.artist.replace(/"/g,'""')+'",'+(t.year||"")+","+t.set+","+
-      mmss(t.dur)+","+(t.added?"yes":"")+","+v.join(",")+","+cast.reduce((a,b)=>a+b,0)+","+cast.length+"\n";
+      mmss(t.dur)+","+(t.added?"yes":"")+","+v.join(",")+","+total+","+cast.length+"\n";
   });
   put(csv,$("copyRaw"),"Copied");
 };
@@ -737,8 +931,8 @@ function importCSV(text){
     if(!key){
       const set=(iSet>=0&&+String(row[iSet]).trim()===2)?2:1;
       let dur=210;
-      if(iDur>=0){const m=String(row[iDur]||"").trim().match(/^(\d+):([0-5]\d)$/);if(m)dur=+m[1]*60+ +m[2];}
-      custom.push({k:k0,name:title,artist:artist,dur:dur,set:set});
+      if(iDur>=0){const secs=parseLen(String(row[iDur]||"").trim());if(secs)dur=secs;}
+      custom.push({k:k0,name:title,artist:artist,dur:dur,set:set,energy:"",tags:"",lead:""});
       byKey[k0]=k0;key=k0;created++;
     }else matched++;
     who.forEach(w=>{
@@ -853,6 +1047,7 @@ $("copyDiag").onclick=()=>put($("diagOut").textContent||"(run the check first)",
     const sn=localStorage.getItem("br_name"), ss=localStorage.getItem("br_secret");
     if(ss){secret=ss;$("secretIn").value=ss;}
     if(sn)$("nameIn").value=sn;
+    loadSavedOrders();
   }catch(e){}
   await pull();
   const who=Object.keys(pool).filter(n=>Object.keys(pool[n]||{}).length);

@@ -57,6 +57,9 @@ export default async function handler(req, res) {
               artist: String(c.artist || ""),
               dur: Number(c.dur) || 210,
               set: Number(c.set) === 2 ? 2 : 1,
+              energy: Number(c.energy) > 0 ? Number(c.energy) : "",
+              tags: String(c.tags || ""),
+              lead: String(c.lead || ""),
             }))
         );
       }

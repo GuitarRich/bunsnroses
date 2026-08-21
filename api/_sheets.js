@@ -1,8 +1,10 @@
 import { google } from "googleapis";
+import { voteWeight } from "../setlist.js";
 
 const VOTES_TAB = "Votes";
 const SONGS_TAB = "AddedSongs";
 const GRID_TAB = "Grid";
+const SONG_HEADERS = ["Key", "Title", "Artist", "Seconds", "Set", "Energy", "Tags", "Lead"];
 
 let cached = null;
 
@@ -53,13 +55,30 @@ export async function ensureTabs() {
     if (missing.includes(SONGS_TAB)) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: id,
-        range: `${SONGS_TAB}!A1:E1`,
+        range: `${SONGS_TAB}!A1:H1`,
         valueInputOption: "RAW",
-        requestBody: { values: [["Key", "Title", "Artist", "Seconds", "Set"]] },
+        requestBody: { values: [SONG_HEADERS] },
       });
     }
   }
+  await ensureSongMetaHeaders(sheets, id);
   return { VOTES_TAB, SONGS_TAB, GRID_TAB };
+}
+
+async function ensureSongMetaHeaders(sheets, id) {
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: id,
+    range: `${SONGS_TAB}!A1:H1`,
+  });
+  const have = (res.data.values && res.data.values[0]) || [];
+  const same = SONG_HEADERS.every((h, i) => have[i] === h);
+  if (same) return;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: id,
+    range: `${SONGS_TAB}!A1:H1`,
+    valueInputOption: "RAW",
+    requestBody: { values: [SONG_HEADERS] },
+  });
 }
 
 export async function readAll() {
@@ -68,7 +87,7 @@ export async function readAll() {
   const id = sheetId();
   const res = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: id,
-    ranges: [`${VOTES_TAB}!A2:E200`, `${SONGS_TAB}!A2:E500`],
+    ranges: [`${VOTES_TAB}!A2:E200`, `${SONGS_TAB}!A2:H500`],
   });
   const [voteRows = [], songRows = []] = res.data.valueRanges.map((r) => r.values || []);
 
@@ -87,13 +106,19 @@ export async function readAll() {
 
   const custom = songRows
     .filter((r) => r[0] && r[1])
-    .map((r) => ({
-      k: r[0],
-      name: r[1],
-      artist: r[2] || "",
-      dur: Number(r[3]) || 210,
-      set: Number(r[4]) === 2 ? 2 : 1,
-    }));
+    .map((r) => {
+      const energy = Number(r[5]);
+      return {
+        k: r[0],
+        name: r[1],
+        artist: r[2] || "",
+        dur: Number(r[3]) || 210,
+        set: Number(r[4]) === 2 ? 2 : 1,
+        energy: energy > 0 ? energy : "",
+        tags: String(r[6] || ""),
+        lead: String(r[7] || ""),
+      };
+    });
 
   return { voters, custom };
 }
@@ -136,7 +161,7 @@ export async function writeSongs(custom) {
   const id = sheetId();
   await sheets.spreadsheets.values.clear({
     spreadsheetId: id,
-    range: `${SONGS_TAB}!A2:E500`,
+    range: `${SONGS_TAB}!A2:H500`,
   });
   if (!custom.length) return;
   await sheets.spreadsheets.values.update({
@@ -144,7 +169,16 @@ export async function writeSongs(custom) {
     range: `${SONGS_TAB}!A2`,
     valueInputOption: "RAW",
     requestBody: {
-      values: custom.map((c) => [c.k, c.name, c.artist, c.dur, c.set]),
+      values: custom.map((c) => [
+        c.k,
+        c.name,
+        c.artist,
+        c.dur,
+        c.set,
+        Number(c.energy) > 0 ? Number(c.energy) : "",
+        c.tags || "",
+        c.lead || "",
+      ]),
     },
   });
 }
@@ -163,6 +197,7 @@ export async function writeGrid(songs, voters) {
       return v === undefined ? "" : v;
     });
     const cast = cells.filter((c) => c !== "");
+    const total = cast.reduce((a, b) => a + voteWeight(b), 0);
     return [
       s.name,
       s.artist,
@@ -170,7 +205,7 @@ export async function writeGrid(songs, voters) {
       s.set,
       mmss(s.dur),
       ...cells,
-      cast.reduce((a, b) => a + b, 0),
+      total,
       cast.length,
     ];
   });

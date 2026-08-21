@@ -1,0 +1,178 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import {
+  voteWeight,
+  scoreSongs,
+  selectSet,
+  orderCost,
+  seedOrder,
+  orderSet,
+  applySavedOrder,
+  generateSet,
+  moveKey,
+  parseLen,
+  mmss,
+} from "./setlist.js";
+
+function song(partial) {
+  return {
+    k: partial.k || partial.name,
+    name: partial.name || partial.k,
+    artist: partial.artist || "X",
+    dur: partial.dur ?? 180,
+    set: partial.set ?? 1,
+    energy: partial.energy ?? 0,
+    tags: partial.tags || "",
+    lead: partial.lead || "",
+    sum: partial.sum ?? 0,
+    n: partial.n ?? 1,
+    musts: partial.musts ?? 0,
+  };
+}
+
+describe("weights", () => {
+  it("maps stored 0-3 to 6/2/1/-4 and blank to 0", () => {
+    assert.equal(voteWeight(3), 6);
+    assert.equal(voteWeight(2), 2);
+    assert.equal(voteWeight(1), 1);
+    assert.equal(voteWeight(0), -4);
+    assert.equal(voteWeight(undefined), 0);
+    assert.equal(voteWeight(""), 0);
+  });
+
+  it("scores a pool with MUST and Pass", () => {
+    const songs = [song({ k: "a", name: "A" })];
+    const pool = { Rich: { a: 3 }, Joel: { a: 0 } };
+    const [row] = scoreSongs(songs, pool);
+    assert.equal(row.sum, 2);
+    assert.equal(row.musts, 1);
+    assert.equal(row.n, 2);
+  });
+});
+
+describe("selectSet", () => {
+  it("never includes a negative total, even with time left", () => {
+    const rows = [
+      song({ k: "good", name: "Good", sum: 4, dur: 120 }),
+      song({ k: "bad", name: "Bad", sum: -4, dur: 120 }),
+    ];
+    const { keep, rest } = selectSet(rows, 1, { target: 45 * 60 });
+    assert.deepEqual(keep.map((s) => s.k), ["good"]);
+    assert.equal(rest[0].why, "neg");
+  });
+
+  it("caps at 2 per artist and tags extras CAP", () => {
+    const rows = [
+      song({ k: "a1", name: "A1", artist: "Nirvana", sum: 12, dur: 120 }),
+      song({ k: "a2", name: "A2", artist: "Nirvana", sum: 10, dur: 120 }),
+      song({ k: "a3", name: "A3", artist: "Nirvana", sum: 8, dur: 120 }),
+      song({ k: "b1", name: "B1", artist: "Pearl Jam", sum: 6, dur: 120 }),
+    ];
+    const { keep, rest } = selectSet(rows, 1, { target: 45 * 60, maxPerArtist: 2 });
+    assert.deepEqual(keep.map((s) => s.k), ["a1", "a2", "b1"]);
+    assert.equal(rest.find((s) => s.k === "a3").why, "CAP");
+  });
+
+  it("skips a song that overruns and keeps walking for a shorter one", () => {
+    const rows = [
+      song({ k: "long", name: "Long", artist: "A", sum: 10, dur: 400 }),
+      song({ k: "mid", name: "Mid", artist: "B", sum: 8, dur: 200 }),
+      song({ k: "short", name: "Short", artist: "C", sum: 6, dur: 100 }),
+    ];
+    const { keep } = selectSet(rows, 1, { target: 320 });
+    assert.deepEqual(keep.map((s) => s.k), ["mid", "short"]);
+  });
+
+  it("hard-fails when any pooled song has no length", () => {
+    const rows = [
+      song({ k: "ok", name: "Ok", sum: 4, dur: 180 }),
+      song({ k: "zero", name: "Zero", sum: 10, dur: 0 }),
+    ];
+    const out = selectSet(rows, 1, { target: 45 * 60 });
+    assert.equal(out.ok, false);
+    assert.match(out.error, /Zero/);
+    assert.equal(out.keep.length, 0);
+  });
+
+  it("tie-breaks MUST count then shorter duration", () => {
+    const rows = [
+      song({ k: "long", name: "Long", artist: "A", sum: 6, musts: 0, dur: 300 }),
+      song({ k: "must", name: "Must", artist: "B", sum: 6, musts: 2, dur: 300 }),
+      song({ k: "short", name: "Short", artist: "C", sum: 6, musts: 0, dur: 120 }),
+    ];
+    const { ranked } = selectSet(rows, 1, { target: 45 * 60 });
+    assert.deepEqual(ranked.map((s) => s.k), ["must", "short", "long"]);
+  });
+});
+
+describe("ordering", () => {
+  it("penalises a closer that is not last", () => {
+    const closer = song({ k: "c", name: "C", tags: "closer", energy: 5, dur: 180 });
+    const other = song({ k: "o", name: "O", energy: 4, dur: 180 });
+    const wrong = orderCost([closer, other]);
+    const right = orderCost([other, closer]);
+    assert.ok(wrong > right);
+  });
+
+  it("penalises slow songs in the last three more than the first three", () => {
+    const slow = song({ k: "s", name: "S", energy: 1, tags: "slow", dur: 180 });
+    const hot = (k) => song({ k, name: k, energy: 5, dur: 180 });
+    const atEnd = orderCost([hot("a"), hot("b"), hot("c"), slow]);
+    const atStart = orderCost([slow, hot("a"), hot("b"), hot("c")]);
+    assert.ok(atEnd > atStart);
+  });
+
+  it("seed+repair puts a tagged closer last when selected", () => {
+    const songs = [
+      song({ k: "c", name: "Closer", tags: "closer", energy: 5, dur: 180 }),
+      song({ k: "o", name: "Opener", tags: "opener", energy: 5, dur: 180 }),
+      song({ k: "m", name: "Mid", energy: 3, dur: 180 }),
+    ];
+    const ordered = orderSet(songs);
+    assert.equal(ordered[ordered.length - 1].k, "c");
+    assert.equal(ordered[0].k, "o");
+  });
+
+  it("seedOrder prefers opener first", () => {
+    const songs = [
+      song({ k: "m", name: "Mid", energy: 3 }),
+      song({ k: "o", name: "Opener", tags: "opener", energy: 5 }),
+    ];
+    assert.equal(seedOrder(songs)[0].k, "o");
+  });
+});
+
+describe("applySavedOrder", () => {
+  it("keys by identity, drops missing songs, appends new ones", () => {
+    const auto = [song({ k: "a" }), song({ k: "b" }), song({ k: "c" })];
+    const out = applySavedOrder(auto, ["c", "gone", "a"]);
+    assert.deepEqual(out.map((s) => s.k), ["c", "a", "b"]);
+  });
+
+  it("moveKey reorders without losing items", () => {
+    assert.deepEqual(moveKey(["a", "b", "c"], 2, 0), ["c", "a", "b"]);
+  });
+});
+
+describe("generateSet", () => {
+  it("selects then orders and honours saved keys", () => {
+    const rows = [
+      song({ k: "a", name: "A", artist: "A", sum: 8, energy: 5, tags: "opener", dur: 180 }),
+      song({ k: "b", name: "B", artist: "B", sum: 6, energy: 3, dur: 180 }),
+      song({ k: "c", name: "C", artist: "C", sum: 4, energy: 5, tags: "closer", dur: 180 }),
+    ];
+    const out = generateSet(rows, 1, { target: 45 * 60, orderKeys: ["c", "b", "a"] });
+    assert.equal(out.ok, true);
+    assert.deepEqual(out.ordered.map((s) => s.k), ["c", "b", "a"]);
+    assert.equal(out.auto[out.auto.length - 1].k, "c");
+  });
+});
+
+describe("parseLen / mmss", () => {
+  it("parses m:ss and rejects junk", () => {
+    assert.equal(parseLen("3:45"), 225);
+    assert.equal(parseLen("3:23:00"), 203);
+    assert.equal(parseLen("nope"), 0);
+    assert.equal(mmss(225), "3:45");
+  });
+});

@@ -1,21 +1,38 @@
-# Bun's & Roses — Setlist Vote (v10)
+# Bun's & Roses — Setlist Vote (v12)
 
 Static page + two serverless functions on Vercel. All votes live in one Google Sheet.
 
-    public/index.html   the app
+    index.html          the app
+    setlist.js          scoring, selection, ordering
     api/votes.js        GET all votes / POST one voter
     api/health.js       setup diagnostics
     api/_sheets.js      Google Sheets helper
+
+## Scoring
+
+Stored votes are still integers 0–3. Weights:
+
+    3 Must play   +6
+    2 Yes         +2
+    1 Maybe       +1
+    0 Pass        −4   (a veto — outweighs two Yes votes)
+    blank         0
+
+Each set is built separately (Set 1 = 45 min 70s/80s, Set 2 = 60 min 90s+):
+select highest score first until the budget is full, skip negatives, cap at 2
+songs per artist, then order the chosen songs for pacing. Drag-reorder is
+saved in this browser only, not the sheet.
 
 ## Sheet tabs (created automatically on first call)
 
 | Tab | What's in it |
 |---|---|
 | `Votes` | One row per person: Name, UpdatedAt, AppVersion, VoteCount, VotesJSON |
-| `AddedSongs` | Songs Rich has added: Key, Title, Artist, Seconds, Set |
-| `Grid` | Readable matrix — one row per song, one column per voter. Rewritten on each save. |
+| `AddedSongs` | Songs Rich has added: Key, Title, Artist, Seconds, Set, Energy, Tags, Lead |
+| `Grid` | Readable matrix — one row per song, one column per voter. Rewritten on each save. Total is the weighted score. |
 
 `Votes` is the source of truth. `Grid` is for reading and arguing over — edits there are overwritten.
+
 
 ## Setup
 
