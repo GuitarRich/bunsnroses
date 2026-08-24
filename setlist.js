@@ -2,7 +2,7 @@
 
 export const WEIGHTS = { 3: 6, 2: 2, 1: 1, 0: -4 };
 export const TARGET = { 1: 45 * 60, 2: 60 * 60 };
-export const MAX_PER_ARTIST = 2;
+export const MAX_PER_ARTIST = 1;
 export const BAND = ["Rich", "Joel", "Anders", "Pete"];
 export const TAGS = ["opener", "closer", "ballad", "dedication", "slow"];
 
@@ -63,10 +63,13 @@ export function rankSongs(rows) {
 /**
  * Select songs for one set. Skip-and-continue on time.
  * Negative scores never make the cut. Artist cap marks CAP, does not drop from ranking.
+ * The artist cap spans every set built with the same tally: pass the previous set's
+ * usedArtists back in via opts.usedArtists and an artist picked there is capped here too.
  */
 export function selectSet(rows, setNum, opts) {
   const target = (opts && opts.target) || TARGET[setNum];
   const maxPer = (opts && opts.maxPerArtist) || MAX_PER_ARTIST;
+  const used = { ...((opts && opts.usedArtists) || {}) };
   const pool = rows.filter((r) => r.set === setNum);
   const bad = pool.filter((r) => !r.dur || r.dur <= 0);
   if (bad.length) {
@@ -82,13 +85,13 @@ export function selectSet(rows, setNum, opts) {
       rest: [],
       run: 0,
       ranked: rankSongs(pool),
+      usedArtists: used,
     };
   }
 
   const ranked = rankSongs(pool);
   const keep = [];
   const rest = [];
-  const nBy = {};
   let run = 0;
 
   ranked.forEach((r) => {
@@ -97,7 +100,7 @@ export function selectSet(rows, setNum, opts) {
       rest.push({ ...r, why: "neg" });
       return;
     }
-    if ((nBy[a] || 0) >= maxPer) {
+    if ((used[a] || 0) >= maxPer) {
       rest.push({ ...r, why: "CAP" });
       return;
     }
@@ -106,11 +109,11 @@ export function selectSet(rows, setNum, opts) {
       return;
     }
     keep.push(r);
-    nBy[a] = (nBy[a] || 0) + 1;
+    used[a] = (used[a] || 0) + 1;
     run += r.dur;
   });
 
-  return { ok: true, keep, rest, run, ranked, error: "" };
+  return { ok: true, keep, rest, run, ranked, usedArtists: used, error: "" };
 }
 
 export function targetEnergy(i, n) {
@@ -249,6 +252,30 @@ export function generateSet(rows, setNum, opts) {
   return { ...sel, auto, ordered };
 }
 
+export const SETS = [1, 2];
+
+/**
+ * Build every set in one pass so the artist cap is global, not per set.
+ * Sets are built in order, so the earlier set gets first claim on a shared artist.
+ * opts.orderKeys is keyed by set number. Returns a map of set number to generateSet result.
+ */
+export function generateSets(rows, opts) {
+  const sets = (opts && opts.sets) || SETS;
+  const orderKeys = (opts && opts.orderKeys) || {};
+  let used = (opts && opts.usedArtists) || {};
+  const out = {};
+  sets.forEach((setNum) => {
+    const gen = generateSet(rows, setNum, {
+      ...opts,
+      orderKeys: orderKeys[setNum],
+      usedArtists: used,
+    });
+    used = gen.usedArtists;
+    out[setNum] = gen;
+  });
+  return out;
+}
+
 export function searchLinks(song) {
   const q = encodeURIComponent((song.artist || "") + " " + (song.name || song.song || ""));
   return {
@@ -310,6 +337,8 @@ const api = {
   orderSet,
   applySavedOrder,
   generateSet,
+  SETS,
+  generateSets,
   searchLinks,
   parseLen,
   mmss,

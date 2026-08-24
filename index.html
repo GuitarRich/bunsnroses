@@ -295,7 +295,7 @@
 
 <script type="module">
 import {
-  TARGET, MAX_PER_ARTIST, voteWeight, scoreSongs, generateSet,
+  TARGET, MAX_PER_ARTIST, voteWeight, scoreSongs, generateSets,
   searchLinks, parseLen, mmss as fmtTime, moveKey
 } from "./setlist.js";
 
@@ -365,8 +365,9 @@ const TRACKS=[
 ["Make It Wit Chu","Queens of the Stone Age",290,2007,91,2,2,"slow",""]
 ];
 const BAND=["Rich","Joel","Anders","Pete"];
-const VERSION="v12";
+const VERSION="v13";
 const CHANGES={
+ "v13":"At most 1 song from any one artist across both sets \u2014 set 1 gets first claim",
  "v12":"Pass is a veto (\u22124). Weighted scores, generated running order, max 2 per artist still applies",
  "v11":"Each setlist takes at most 2 songs from any one artist, votes or not",
  "v10":"Hosted on Vercel with a Google Sheet backend \u2014 votes sync for everyone",
@@ -716,8 +717,9 @@ function showResults(){
     ? who.map(n=>n+" \u00b7 "+Object.keys(pool[n]).length+"/"+LIST.length).join("     ")
     : "No votes recorded yet.";
   const rows=scored(),box=$("sets");box.innerHTML="";
+  const gens=generateSets(rows,{orderKeys:{1:orderKeysFor(1),2:orderKeysFor(2)}});
   [1,2].forEach(s=>{
-    const gen=generateSet(rows,s,{orderKeys:orderKeysFor(s)});
+    const gen=gens[s];
     const el=document.createElement("div");el.className="set";
     if(!gen.ok){
       el.innerHTML='<div class="sethead"><h3>Set '+s+' &mdash; '+(s===1?"70s / 80s":"90s and after")+'</h3></div>'+
@@ -733,7 +735,7 @@ function showResults(){
       '<div class="clock mono">'+mmss(run)+' / '+mmss(TARGET[s])+'</div></div>'+
       '<div class="meter"><i style="width:'+Math.min(run/TARGET[s]*100,100)+'%"></i>'+
       '<div class="ticks">'+'<span></span>'.repeat(s===1?9:12)+'</div></div>'+
-      '<div class="meterfoot"><span>0:00</span><span>'+gen.ordered.length+' songs \u00b7 max '+MAX_PER_ARTIST+' per artist</span><span>'+mmss(TARGET[s])+'</span></div>';
+      '<div class="meterfoot"><span>0:00</span><span>'+gen.ordered.length+' songs \u00b7 max '+MAX_PER_ARTIST+' per artist across both sets</span><span>'+mmss(TARGET[s])+'</span></div>';
 
     const bar=document.createElement("div");
     bar.className="orderbar "+mode;
@@ -861,8 +863,9 @@ function put(text,btn,okTxt){
 }
 $("copySet").onclick=()=>{
   const rows=scored();let out="BUN'S & ROSES \u2014 SETLIST  ("+VERSION+")\n";
+  const gens=generateSets(rows,{orderKeys:{1:orderKeysFor(1),2:orderKeysFor(2)}});
   [1,2].forEach(s=>{
-    const gen=generateSet(rows,s,{orderKeys:orderKeysFor(s)});
+    const gen=gens[s];
     const list=gen.ok?gen.ordered:[];
     const run=list.reduce((a,r)=>a+r.dur,0);
     out+="\nSET "+s+" ("+mmss(run)+")\n\n";

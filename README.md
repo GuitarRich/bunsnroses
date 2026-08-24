@@ -19,8 +19,9 @@ Stored votes are still integers 0–3. Weights:
     blank         0
 
 Each set is built separately (Set 1 = 45 min 70s/80s, Set 2 = 60 min 90s+):
-select highest score first until the budget is full, skip negatives, cap at 2
-songs per artist, then order the chosen songs for pacing. Drag-reorder is
+select highest score first until the budget is full, skip negatives, cap at 1
+song per artist across both sets (set 1 is built first, so it gets first claim
+on a shared artist), then order the chosen songs for pacing. Drag-reorder is
 saved in this browser only, not the sheet.
 
 ## Sheet tabs (created automatically on first call)
