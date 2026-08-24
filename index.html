@@ -140,6 +140,11 @@
   #sv .orderbar button{padding:6px 10px;border:1px solid var(--line);border-radius:2px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600;color:var(--dim)}
   #sv .orderbar button:hover{color:var(--lamp);border-color:var(--lamp)}
   #sv .runhead,.rankhead{font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;font-family:'Barlow Condensed',sans-serif;color:var(--dim);margin:14px 0 6px}
+  #sv button.rankhead{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:12px 0 0;cursor:pointer}
+  #sv button.rankhead:hover,#sv button.rankhead:focus-visible{color:var(--lamp)}
+  #sv button.rankhead .chev{font-size:8px;transition:transform .15s ease}
+  #sv button.rankhead.on .chev{transform:rotate(90deg)}
+  #sv button.rankhead .cnt{margin-left:auto;font-family:'IBM Plex Mono',monospace;letter-spacing:.05em;font-size:10px}
   #sv .handle{width:18px;flex:none;color:var(--dim);cursor:grab;font-size:14px;letter-spacing:-2px;text-align:center;user-select:none}
   #sv .row.dragging{opacity:.45}
   #sv .arrows{display:flex;flex-direction:column;gap:2px;flex:none}
@@ -388,6 +393,7 @@ const NB=TRACKS.length;                 // built-in count (positions never chang
 
 let me_=null, myVotes={}, pool={}, custom=[], idx=0, openRow=null, storageOK=null;
 let draftOrder={1:null,2:null}, savedOrder={1:null,2:null}, dragSet=null, dragFrom=-1;
+let rankOpen={1:false,2:false};
 const $=id=>document.getElementById(id);
 const mmss=fmtTime;
 const slug=n=>n.toLowerCase().replace(/[^a-z0-9]/g,"")||"x";
@@ -400,6 +406,17 @@ function loadSavedOrders(){
       savedOrder[s]=raw?JSON.parse(raw):null;
     });
   }catch(e){}
+  loadRankOpen();
+}
+const RANK_KEY="br_rankopen";
+function loadRankOpen(){
+  try{
+    const raw=localStorage.getItem(RANK_KEY);
+    if(raw){const v=JSON.parse(raw);rankOpen={1:!!v[1],2:!!v[2]};}
+  }catch(e){}
+}
+function persistRankOpen(){
+  try{localStorage.setItem(RANK_KEY,JSON.stringify(rankOpen));}catch(e){}
 }
 function persistSaved(s){
   try{
@@ -802,32 +819,40 @@ function showResults(){
     });
     el.appendChild(runBody);
 
-    const rankHead=document.createElement("div");rankHead.className="rankhead";rankHead.textContent="Ranking \u2014 full pool";
+    const rankHead=document.createElement("button");
+    rankHead.className="rankhead"+(rankOpen[s]?" on":"");
+    rankHead.setAttribute("aria-expanded",rankOpen[s]?"true":"false");
+    rankHead.innerHTML='<span class="chev">\u25B6</span><span>Ranking \u2014 full pool</span>'+
+      '<span class="cnt">'+(gen.keep.length+gen.rest.length)+'</span>';
+    rankHead.onclick=()=>{rankOpen[s]=!rankOpen[s];persistRankOpen();showResults();};
     el.appendChild(rankHead);
-    const legend=document.createElement("div");legend.className="legend";
-    legend.innerHTML=who.map(n=>'<i>'+n.slice(0,3).toUpperCase()+'</i>').join("")+'<i style="width:36px"></i>';
-    el.appendChild(legend);
-    const rankBody=document.createElement("div");
-    const addRank=(r,k,cut)=>{
-      const row=document.createElement("button");
-      row.className="row"+(cut?" cut":"")+(openRow===r.k?" open":"");
-      const cells=who.map(n=>{
-        const v=pool[n][r.k];
-        return '<div class="cell '+(v===undefined?"none":"v"+v)+(n===me_?" mine":"")+'">'+(v===undefined?"\u00b7":v)+'</div>';
-      }).join("");
-      row.innerHTML='<div class="rk mono">'+(k+1)+'</div><div class="rt"><b>'+r.name+songTags(r)+'</b><span>'+r.artist+'</span></div>'+
-        '<div class="rd mono">'+mmss(r.dur)+'</div><div class="grid">'+cells+'</div>'+
-        '<div class="rs mono">'+r.sum+'</div>';
-      row.onclick=()=>{openRow=openRow===r.k?null:r.k;showResults();};
-      rankBody.appendChild(row);
-      if(openRow===r.k)rankBody.appendChild(voteEditor(r));
-    };
-    gen.keep.forEach((r,k)=>addRank(r,k,false));
-    if(gen.rest.length){
-      const d=document.createElement("div");d.className="divider";d.textContent="below the line";rankBody.appendChild(d);
-      gen.rest.forEach((r,k)=>addRank(r,gen.keep.length+k,true));
+
+    if(rankOpen[s]){
+      const legend=document.createElement("div");legend.className="legend";
+      legend.innerHTML=who.map(n=>'<i>'+n.slice(0,3).toUpperCase()+'</i>').join("")+'<i style="width:36px"></i>';
+      el.appendChild(legend);
+      const rankBody=document.createElement("div");
+      const addRank=(r,k,cut)=>{
+        const row=document.createElement("button");
+        row.className="row"+(cut?" cut":"")+(openRow===r.k?" open":"");
+        const cells=who.map(n=>{
+          const v=pool[n][r.k];
+          return '<div class="cell '+(v===undefined?"none":"v"+v)+(n===me_?" mine":"")+'">'+(v===undefined?"\u00b7":v)+'</div>';
+        }).join("");
+        row.innerHTML='<div class="rk mono">'+(k+1)+'</div><div class="rt"><b>'+r.name+songTags(r)+'</b><span>'+r.artist+'</span></div>'+
+          '<div class="rd mono">'+mmss(r.dur)+'</div><div class="grid">'+cells+'</div>'+
+          '<div class="rs mono">'+r.sum+'</div>';
+        row.onclick=()=>{openRow=openRow===r.k?null:r.k;showResults();};
+        rankBody.appendChild(row);
+        if(openRow===r.k)rankBody.appendChild(voteEditor(r));
+      };
+      gen.keep.forEach((r,k)=>addRank(r,k,false));
+      if(gen.rest.length){
+        const d=document.createElement("div");d.className="divider";d.textContent="below the line";rankBody.appendChild(d);
+        gen.rest.forEach((r,k)=>addRank(r,gen.keep.length+k,true));
+      }
+      el.appendChild(rankBody);
     }
-    el.appendChild(rankBody);
     box.appendChild(el);
   });
   drawCustom();
