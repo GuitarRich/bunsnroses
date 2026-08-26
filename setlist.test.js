@@ -13,6 +13,9 @@ import {
   moveKey,
   parseLen,
   mmss,
+  songKey,
+  tuningFor,
+  TUNING_SEEDS,
 } from "./setlist.js";
 
 function song(partial) {
@@ -242,5 +245,26 @@ describe("parseLen / mmss", () => {
     assert.equal(parseLen("3:23:00"), 203);
     assert.equal(parseLen("nope"), 0);
     assert.equal(mmss(225), "3:45");
+  });
+});
+
+describe("tunings", () => {
+  it("songKey slugs name and artist", () => {
+    assert.equal(songKey("Riff Raff", "AC/DC"), "riffraff-acdc");
+    assert.equal(songKey("Rockin` in the Free World", "Neil Young"), "rockininthefreeworld-neilyoung");
+  });
+  it("sheet row wins over seed, even when blank", () => {
+    assert.equal(tuningFor({ "riffraff-acdc": "Drop D" }, "Riff Raff", "AC/DC"), "Drop D");
+    assert.equal(tuningFor({ "riffraff-acdc": "" }, "Riff Raff", "AC/DC"), "");
+  });
+  it("falls back to seeds when the sheet has no row", () => {
+    assert.equal(tuningFor({}, "Riff Raff", "AC/DC"), "E standard");
+    assert.equal(tuningFor(null, "Cherub Rock", "The Smashing Pumpkins"), "Eb standard");
+    assert.equal(tuningFor({}, "Unknown Song", "Nobody"), "");
+  });
+  it("every seed has a non-empty tuning", () => {
+    for (const t of TUNING_SEEDS) {
+      assert.ok(t.name && t.artist && t.tuning, JSON.stringify(t));
+    }
   });
 });

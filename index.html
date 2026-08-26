@@ -133,6 +133,7 @@
   #sv .tag{font-size:9px;letter-spacing:.1em;padding:2px 5px;border:1px solid var(--lamp);color:var(--lamp);border-radius:2px;margin-left:7px;vertical-align:middle;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
   #sv .tag.cap{border-color:var(--hot);color:var(--hot)}
   #sv .tag.neg{border-color:var(--dim);color:var(--dim)}
+  #sv .tag.tune{border-color:var(--dim);color:var(--dim);text-transform:none;letter-spacing:.03em}
   #sv .orderbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:10px 12px;border:1px solid var(--line);border-radius:2px;background:var(--panel);font-size:12px;color:var(--dim)}
   #sv .orderbar b{color:var(--lamp);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-size:11px}
   #sv .orderbar.unsaved b{color:var(--hot)}
@@ -202,7 +203,7 @@
         <div class="tnum mono"><span id="tnum"></span><b id="tvote"></b></div>
         <div class="tname disp" id="tname"></div>
         <div class="tart" id="tart"></div>
-        <div class="tmeta mono"><span id="tdur"></span><span id="tyear"></span><span id="tbpm"></span><span id="tset"></span></div>
+        <div class="tmeta mono"><span id="tdur"></span><span id="tyear"></span><span id="tbpm"></span><span id="tset"></span><span id="ttune"></span></div>
       </div>
       <div class="votes" id="votes">
         <button data-v="3"><b>Must play</b><span>Fight me on it</span></button>
@@ -301,7 +302,7 @@
 <script type="module">
 import {
   TARGET, MAX_PER_ARTIST, voteWeight, scoreSongs, generateSets,
-  searchLinks, parseLen, mmss as fmtTime, moveKey
+  searchLinks, parseLen, mmss as fmtTime, moveKey, tuningFor
 } from "./setlist.js";
 
 const TRACKS=[
@@ -370,8 +371,9 @@ const TRACKS=[
 ["Make It Wit Chu","Queens of the Stone Age",290,2007,91,2,2,"slow",""]
 ];
 const BAND=["Rich","Joel","Anders","Pete"];
-const VERSION="v15";
+const VERSION="v16";
 const CHANGES={
+ "v16":"Guitar tunings on every song — edit them in the sheet's Tunings tab",
  "v15":"Riff Raff tagged as opener \u2014 generator now locks it at set 1, track 1",
  "v14":"Ranking \u2014 full pool now collapses so both setlists fit on screen",
  "v13":"At most 1 song from any one artist across both sets \u2014 set 1 gets first claim",
@@ -500,12 +502,14 @@ function readHash(){
 }
 
 /* ---------- backend: Vercel function -> Google Sheet ---------- */
-let poolTs={}, diag=[], secret="", lastErr="";
+let poolTs={}, diag=[], secret="", lastErr="", tunings={};
+const tuneOf=r=>tuningFor(tunings,r.name,r.artist);
 function log(x){diag.push(new Date().toLocaleTimeString()+"  "+x);if(diag.length>60)diag.shift();}
 const API="/api/votes";
 
 function absorb(data){
   const v=data.voters||{};
+  if(data.tunings)tunings=data.tunings;
   mergeDefs(data.custom||[]);
   Object.keys(v).forEach(n=>{
     const rec=v[n]||{},votes=rec.votes||{},ts=rec.ts||0;
@@ -627,6 +631,7 @@ function render(){
   $("tyear").textContent=t.year||"";
   $("tbpm").textContent=t.bpm?t.bpm+" bpm":"";
   $("tset").textContent="Set "+t.set;
+  $("ttune").textContent=tuneOf(t);
   $("pbar").style.width=(done/N*100)+"%";
   $("pcount").textContent=done+" / "+N+" scored";
   $("pleft").textContent=(N-done)+" left";
@@ -785,7 +790,8 @@ function showResults(){
           '<button data-dir="-1" '+(k===0?"disabled":"")+'>&#9650;</button>'+
           '<button data-dir="1" '+(k===gen.ordered.length-1?"disabled":"")+'>&#9660;</button>'+
         '</div>'+
-        '<div class="rk mono">'+(k+1)+'</div><div class="rt"><b>'+r.name+(r.added?'<span class="tag">Added</span>':"")+'</b><span>'+r.artist+
+        '<div class="rk mono">'+(k+1)+'</div><div class="rt"><b>'+r.name+(r.added?'<span class="tag">Added</span>':"")+
+        (tuneOf(r)?'<span class="tag tune">'+tuneOf(r)+'</span>':"")+'</b><span>'+r.artist+
         (r.lead?" \u00b7 "+r.lead:"")+'</span>'+linkRow(r)+'</div>'+
         '<div class="rd mono">'+mmss(r.dur)+'</div>'+
         '<div class="rs mono">'+r.sum+'</div>';

@@ -1,4 +1,4 @@
-import { readAll, writeVoter, writeSongs, writeGrid, readBody } from "./_sheets.js";
+import { readAll, writeVoter, writeSongs, writeGrid, syncTunings, readBody } from "./_sheets.js";
 
 const OWNER = (process.env.OWNER_NAME || "Rich").toLowerCase();
 
@@ -72,6 +72,15 @@ export default async function handler(req, res) {
           await writeGrid(songs, fresh.voters);
         } catch (e) {
           console.error("grid write failed:", e.message);
+        }
+        // Make sure every catalog song has an editable row in the Tunings tab.
+        try {
+          fresh.tunings = await syncTunings(
+            songs.map((s) => ({ name: s.name, artist: s.artist, tuning: "" })),
+            fresh.tunings
+          );
+        } catch (e) {
+          console.error("tunings sync failed:", e.message);
         }
       }
 

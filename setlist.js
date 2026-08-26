@@ -316,6 +316,65 @@ export function moveKey(keys, from, to) {
   return next;
 }
 
+/** Identity key shared by the pages and the Tunings sheet tab. */
+export function songKey(name, artist) {
+  const slug = (s) =>
+    String(s || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "") || "x";
+  return slug(name) + "-" + slug(artist);
+}
+
+/**
+ * Researched default tunings. The Tunings sheet tab is the source of truth once
+ * a row exists there — these only seed missing rows and cover the no-API
+ * fallback. Names/artists match the catalog spelling exactly (typos included)
+ * so the keys line up.
+ */
+export const TUNING_SEEDS = [
+  { name: "I Wanna Be Your Dog", artist: "The Stooges", tuning: "E standard" },
+  { name: "You Really Got Me", artist: "Van Halen", tuning: "E standard (record ~1/2 flat)" },
+  { name: "Ramble On", artist: "Led Zepplin", tuning: "E standard" },
+  { name: "Rockin` in the Free World", artist: "Neil Young", tuning: "E standard" },
+  { name: "Born On The Bayou", artist: "Creedence Clearwater Revival", tuning: "E standard" },
+  { name: "Kiss", artist: "Prince", tuning: "E standard" },
+  { name: "Mississippi Queen", artist: "Mountain", tuning: "E standard" },
+  { name: "Sharp Dressed Man", artist: "ZZ Top", tuning: "E standard" },
+  { name: "Riff Raff", artist: "AC/DC", tuning: "E standard" },
+  { name: "Blitzkrieg Bop", artist: "Ramones", tuning: "E standard" },
+  { name: "Rock And Roll All Nite", artist: "KISS", tuning: "E standard (record Eb)" },
+  { name: "Cochise", artist: "Audioslave", tuning: "E standard (verify)" },
+  { name: "Cherub Rock", artist: "The Smashing Pumpkins", tuning: "Eb standard" },
+  { name: "Superunknown", artist: "Soundgarden", tuning: "Drop D (verify)" },
+  { name: "Sad But True", artist: "Metallica", tuning: "D standard (play drop D)" },
+  { name: "Hey Man, Nice Shot", artist: "Filter", tuning: "Drop D" },
+  { name: "Freak", artist: "Silverchair", tuning: "Drop D" },
+  { name: "Trippin' on a Hole in a Paper Heart", artist: "Stone Temple Pilots", tuning: "E standard" },
+  { name: "Make It Wit Chu", artist: "Queens of the Stone Age", tuning: "E standard" },
+  { name: "Dam That River", artist: "Alice In Chains", tuning: "Drop C# (drop D, 1/2 down)" },
+  { name: "Dissident", artist: "Pearl Jam", tuning: "E standard" },
+  { name: "Bleed American", artist: "Jimmy Eat World", tuning: "Drop D" },
+  { name: "Sabotage", artist: "Beastie Boys", tuning: "E standard (riff is bass)" },
+  { name: "Machinehead", artist: "Bush", tuning: "E standard (verify)" },
+  { name: "Territorial Pissings", artist: "Nirvana", tuning: "E standard" },
+  { name: "Sleep Now In the Fire", artist: "Rage Against The Machine", tuning: "E standard (Whammy, no detune)" },
+];
+
+const SEED_TUNINGS = {};
+TUNING_SEEDS.forEach((t) => {
+  SEED_TUNINGS[songKey(t.name, t.artist)] = t.tuning;
+});
+
+/**
+ * Resolve a song's tuning. A key present in the sheet map wins even when its
+ * value is blank — a cleared cell means "no tuning", not "fall back" (gotcha 3).
+ */
+export function tuningFor(map, name, artist) {
+  const k = songKey(name, artist);
+  if (map && Object.prototype.hasOwnProperty.call(map, k)) return String(map[k] || "");
+  return SEED_TUNINGS[k] || "";
+}
+
 const api = {
   WEIGHTS,
   TARGET,
@@ -343,6 +402,9 @@ const api = {
   parseLen,
   mmss,
   moveKey,
+  songKey,
+  TUNING_SEEDS,
+  tuningFor,
 };
 
 if (typeof window !== "undefined") window.Setlist = api;

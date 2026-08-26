@@ -1,10 +1,12 @@
 import { google } from "googleapis";
-import { voteWeight } from "../setlist.js";
+import { voteWeight, songKey, TUNING_SEEDS } from "../setlist.js";
 
 const VOTES_TAB = "Votes";
 const SONGS_TAB = "AddedSongs";
 const GRID_TAB = "Grid";
+const TUNINGS_TAB = "Tunings";
 const SONG_HEADERS = ["Key", "Title", "Artist", "Seconds", "Set", "Energy", "Tags", "Lead"];
+const TUNING_HEADERS = ["Key", "Title", "Artist", "Tuning"];
 
 let cached = null;
 
@@ -36,7 +38,7 @@ export async function ensureTabs() {
   const id = sheetId();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
   const have = new Set(meta.data.sheets.map((s) => s.properties.title));
-  const missing = [VOTES_TAB, SONGS_TAB, GRID_TAB].filter((t) => !have.has(t));
+  const missing = [VOTES_TAB, SONGS_TAB, GRID_TAB, TUNINGS_TAB].filter((t) => !have.has(t));
   if (missing.length) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: id,
@@ -58,6 +60,14 @@ export async function ensureTabs() {
         range: `${SONGS_TAB}!A1:H1`,
         valueInputOption: "RAW",
         requestBody: { values: [SONG_HEADERS] },
+      });
+    }
+    if (missing.includes(TUNINGS_TAB)) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: id,
+        range: `${TUNINGS_TAB}!A1:D1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [TUNING_HEADERS] },
       });
     }
   }
@@ -87,9 +97,11 @@ export async function readAll() {
   const id = sheetId();
   const res = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: id,
-    ranges: [`${VOTES_TAB}!A2:E200`, `${SONGS_TAB}!A2:H500`],
+    ranges: [`${VOTES_TAB}!A2:E200`, `${SONGS_TAB}!A2:H500`, `${TUNINGS_TAB}!A2:D500`],
   });
-  const [voteRows = [], songRows = []] = res.data.valueRanges.map((r) => r.values || []);
+  const [voteRows = [], songRows = [], tuningRows = []] = res.data.valueRanges.map(
+    (r) => r.values || []
+  );
 
   const voters = {};
   for (const r of voteRows) {
@@ -120,7 +132,53 @@ export async function readAll() {
       };
     });
 
-  return { voters, custom };
+  // A row's presence makes it authoritative, even with a blank tuning cell.
+  const tunings = {};
+  for (const r of tuningRows) {
+    const key = String(r[0] || "").trim() || (r[1] ? songKey(r[1], r[2]) : "");
+    if (!key) continue;
+    tunings[key] = String(r[3] || "").replace(/[<>&]/g, "").trim();
+  }
+
+  const seeded = await syncTunings(
+    [...TUNING_SEEDS, ...custom.map((c) => ({ name: c.name, artist: c.artist, tuning: "" }))],
+    tunings
+  );
+
+  return { voters, custom, tunings: seeded };
+}
+
+/**
+ * Append rows to the Tunings tab for any song it doesn't know yet. Existing
+ * rows are never touched — the sheet stays the source of truth for edits.
+ * Returns the tunings map including anything just seeded.
+ */
+export async function syncTunings(entries, existing) {
+  const sheets = sheetsClient();
+  const id = sheetId();
+  const have = existing || {};
+  const fresh = [];
+  const seen = new Set(Object.keys(have));
+  for (const e of entries) {
+    const key = songKey(e.name, e.artist);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    fresh.push([key, e.name, e.artist || "", e.tuning || ""]);
+  }
+  if (fresh.length) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: id,
+      range: `${TUNINGS_TAB}!A2:D2`,
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: fresh },
+    });
+  }
+  const out = { ...have };
+  fresh.forEach((r) => {
+    out[r[0]] = r[3];
+  });
+  return out;
 }
 
 /** Upsert one voter's row, keyed by name (case-insensitive). */
