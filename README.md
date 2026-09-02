@@ -1,4 +1,4 @@
-# Bun's & Roses — Setlist Vote (v17)
+# Bun's & Roses — Setlist Vote (v18)
 
 Two static pages + serverless functions on Vercel. Everything lives in one Google Sheet.
 
@@ -46,9 +46,11 @@ Stored votes are still integers 0–3. Weights:
     0 Pass        −4   (a veto — outweighs two Yes votes)
     blank         0
 
-One set of about 17 songs (`TARGET_SONGS`). Highest score first until the set is
-full, skipping negatives and capping each artist at one song, then the chosen
-songs are ordered for pacing. The old Set 1 / Set 2 field is era metadata now
+One set, sized by song count. Rich sets the number on `results.html` (the
+**Songs in the set** stepper) and it is stored in the sheet's `Settings` tab, so
+the whole band sees the same target; `TARGET_SONGS` is only the fallback.
+Highest score first until the set is full, skipping negatives and capping each
+artist at one song, then the chosen songs are ordered for pacing. The old Set 1 / Set 2 field is era metadata now
 (70s/80s vs 90s+) and no longer divides the show.
 
 Rich can override the vote from `results.html`. **In** forces a song into the
@@ -70,6 +72,7 @@ progress, Know song — and the row shows one pip per member.
 | `Tunings` | Key, Title, Artist, Tuning. Edit freely — the sheet wins over the built-in defaults, and a blank cell means "no tuning". |
 | `Setlist` | Key, Title, Artist, State, Position. `State` is `in`, `out` or blank; `Position` is the manual running order. Editable by hand. |
 | `Progress` | One row per song, one column per band member. Values: `not-started`, `in-progress`, `know-it`. Adding a member is just a new column. |
+| `Settings` | `Song limit` — how many songs the set holds. Editable here or from the page; out-of-range values fall back to the default. |
 
 `Votes` is the source of truth. `Grid` is for reading and arguing over — edits there are overwritten.
 

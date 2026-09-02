@@ -4,11 +4,12 @@
  *
  * Two kinds of write share this endpoint because they share the same gate and
  * the same reply shape:
- *   kind "setlist"  — owner only. Forced in/out and the running order.
+ *   kind "setlist"  — owner only. Forced in/out, the running order, and the
+ *                     song limit for the set.
  *   kind "progress" — any band member, but only ever their own column.
  */
-import { readAll, writeSetlist, writeProgress, readBody } from "./_sheets.js";
-import { normStatus } from "../setlist.js";
+import { readAll, writeSetlist, writeProgress, writeSettings, readBody } from "./_sheets.js";
+import { normStatus, normLimit } from "../setlist.js";
 
 const OWNER = (process.env.OWNER_NAME || "Rich").toLowerCase();
 
@@ -62,8 +63,21 @@ export default async function handler(req, res) {
         }
         const order = (Array.isArray(body.order) ? body.order : []).map(String).filter(Boolean);
         const plan = await writeSetlist(list, states, order);
+        // A limit only rides along when the client sends one, so an ordinary
+        // in/out save can't silently reset it.
+        let settings = null;
+        if (body.limit !== undefined && body.limit !== null && body.limit !== "") {
+          settings = await writeSettings({ songLimit: normLimit(body.limit) });
+        }
         const fresh = await readAll();
-        return res.status(200).json({ ok: true, plan: { ...plan, progress: fresh.plan.progress } });
+        return res.status(200).json({
+          ok: true,
+          plan: {
+            ...plan,
+            progress: fresh.plan.progress,
+            songLimit: settings ? settings.songLimit : fresh.plan.songLimit,
+          },
+        });
       }
 
       if (kind === "progress") {
@@ -76,7 +90,15 @@ export default async function handler(req, res) {
         const fresh = await readAll();
         return res
           .status(200)
-          .json({ ok: true, plan: { states: fresh.plan.states, order: fresh.plan.order, progress } });
+          .json({
+            ok: true,
+            plan: {
+              states: fresh.plan.states,
+              order: fresh.plan.order,
+              songLimit: fresh.plan.songLimit,
+              progress,
+            },
+          });
       }
 
       return res.status(400).json({ ok: false, error: 'kind must be "setlist" or "progress".' });

@@ -6,7 +6,11 @@ import {
   normStatus,
   parseSetlist,
   parseProgress,
+  parseSettings,
+  normLimit,
+  TARGET_SONGS,
   PROGRESS_BASE,
+  SETTINGS_HEADERS,
 } from "../setlist.js";
 
 const VOTES_TAB = "Votes";
@@ -15,6 +19,7 @@ const GRID_TAB = "Grid";
 const TUNINGS_TAB = "Tunings";
 const SETLIST_TAB = "Setlist";
 const PROGRESS_TAB = "Progress";
+const SETTINGS_TAB = "Settings";
 const SONG_HEADERS = ["Key", "Title", "Artist", "Seconds", "Set", "Energy", "Tags", "Lead"];
 const TUNING_HEADERS = ["Key", "Title", "Artist", "Tuning"];
 const SETLIST_HEADERS = ["Key", "Title", "Artist", "State", "Position"];
@@ -49,7 +54,7 @@ export async function ensureTabs() {
   const id = sheetId();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
   const have = new Set(meta.data.sheets.map((s) => s.properties.title));
-  const wanted = [VOTES_TAB, SONGS_TAB, GRID_TAB, TUNINGS_TAB, SETLIST_TAB, PROGRESS_TAB];
+  const wanted = [VOTES_TAB, SONGS_TAB, GRID_TAB, TUNINGS_TAB, SETLIST_TAB, PROGRESS_TAB, SETTINGS_TAB];
   const missing = wanted.filter((t) => !have.has(t));
   if (missing.length) {
     await sheets.spreadsheets.batchUpdate({
@@ -98,6 +103,14 @@ export async function ensureTabs() {
         requestBody: { values: [PROGRESS_BASE] },
       });
     }
+    if (missing.includes(SETTINGS_TAB)) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: id,
+        range: `${SETTINGS_TAB}!A1:B2`,
+        valueInputOption: "RAW",
+        requestBody: { values: [SETTINGS_HEADERS, ["Song limit", TARGET_SONGS]] },
+      });
+    }
   }
   await ensureSongMetaHeaders(sheets, id);
   return { VOTES_TAB, SONGS_TAB, GRID_TAB, SETLIST_TAB, PROGRESS_TAB };
@@ -131,10 +144,17 @@ export async function readAll() {
       `${TUNINGS_TAB}!A2:D500`,
       `${SETLIST_TAB}!A2:E500`,
       `${PROGRESS_TAB}!A1:Z500`,
+      `${SETTINGS_TAB}!A2:B50`,
     ],
   });
-  const [voteRows = [], songRows = [], tuningRows = [], setlistRows = [], progressRows = []] =
-    res.data.valueRanges.map((r) => r.values || []);
+  const [
+    voteRows = [],
+    songRows = [],
+    tuningRows = [],
+    setlistRows = [],
+    progressRows = [],
+    settingsRows = [],
+  ] = res.data.valueRanges.map((r) => r.values || []);
 
   const voters = {};
   for (const r of voteRows) {
@@ -182,7 +202,11 @@ export async function readAll() {
     voters,
     custom,
     tunings: seeded,
-    plan: { ...parseSetlist(setlistRows), progress: parseProgress(progressRows) },
+    plan: {
+      ...parseSetlist(setlistRows),
+      progress: parseProgress(progressRows),
+      ...parseSettings(settingsRows),
+    },
   };
 }
 
@@ -215,6 +239,22 @@ export async function writeSetlist(songs, states, order) {
     requestBody: { values },
   });
   return parseSetlist(values);
+}
+
+/** Rewrite the Settings tab. Owner-only, enforced by the caller. */
+export async function writeSettings(settings) {
+  await ensureTabs();
+  const sheets = sheetsClient();
+  const id = sheetId();
+  const values = [["Song limit", normLimit(settings.songLimit, TARGET_SONGS)]];
+  await sheets.spreadsheets.values.clear({ spreadsheetId: id, range: `${SETTINGS_TAB}!A2:B50` });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: id,
+    range: `${SETTINGS_TAB}!A2`,
+    valueInputOption: "RAW",
+    requestBody: { values },
+  });
+  return parseSettings(values);
 }
 
 /**

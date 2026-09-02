@@ -12,7 +12,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseSetlist, parseProgress, normStatus } from "./setlist.js";
+import { parseSetlist, parseProgress, parseSettings, normStatus, normLimit, TARGET_SONGS } from "./setlist.js";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 8900;
@@ -30,8 +30,13 @@ for (const [name, p] of Object.entries(PATTERNS)) {
 let custom = [];
 let setlistRows = [];   // rows as the Setlist tab would hold them
 let progressRows = [];  // rows as the Progress tab would hold them
+let settingsRows = [["Song limit", TARGET_SONGS]];
 
-const plan = () => ({ ...parseSetlist(setlistRows), progress: parseProgress(progressRows) });
+const plan = () => ({
+  ...parseSetlist(setlistRows),
+  progress: parseProgress(progressRows),
+  ...parseSettings(settingsRows),
+});
 
 const readBody = (req) =>
   new Promise((res, rej) => {
@@ -77,7 +82,7 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (p === "/api/health") {
-      return json(res, 200, { ok: true, sheetTitle: "(offline dev stub)", tabs: ["Votes", "AddedSongs", "Grid", "Tunings", "Setlist", "Progress"], env: { OFFLINE: true }, hint: "This is dev-server.js, not the real sheet." });
+      return json(res, 200, { ok: true, sheetTitle: "(offline dev stub)", tabs: ["Votes", "AddedSongs", "Grid", "Tunings", "Setlist", "Progress", "Settings"], env: { OFFLINE: true }, hint: "This is dev-server.js, not the real sheet." });
     }
 
     if (p === "/api/votes") {
@@ -112,6 +117,9 @@ const server = http.createServer(async (req, res) => {
           if (s === "in" || s === "out") states[k] = s;
         }
         applySetlist(songs, states, (b.order || []).map(String).filter(Boolean));
+        if (b.limit !== undefined && b.limit !== null && b.limit !== "") {
+          settingsRows = [["Song limit", normLimit(b.limit, TARGET_SONGS)]];
+        }
         return json(res, 200, { ok: true, plan: plan() });
       }
       if (b.kind === "progress") {

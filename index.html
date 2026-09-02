@@ -87,9 +87,13 @@ function toast(msg) {
 }
 
 /* ---------- gate ---------- */
-$("gateNote").innerHTML = S.list.length + " songs, and one set of about " + TARGET_SONGS +
-  " on the night. Score what you have an opinion on, skip the rest, change your mind whenever. " +
-  "Pass is a veto: it outweighs two Yes votes. At most " + MAX_PER_ARTIST + " song per artist makes the set.";
+function gateNote() {
+  const limit = S.plan.songLimit || TARGET_SONGS;
+  $("gateNote").innerHTML = S.list.length + " songs, and one set of " + limit +
+    " on the night. Score what you have an opinion on, skip the rest, change your mind whenever. " +
+    "Pass is a veto: it outweighs two Yes votes. At most " + MAX_PER_ARTIST + " song per artist makes the set.";
+}
+gateNote();
 
 BAND.forEach((n) => {
   const b = document.createElement("button");
@@ -190,6 +194,7 @@ $("verNote").textContent = "Version " + VERSION + " — " + CHANGES[VERSION];
   } catch (e) {}
   await pull();
   relist();
+  gateNote();
   const who = Object.keys(S.pool).filter((n) => Object.keys(S.pool[n] || {}).length);
   if (who.length) {
     toast("Votes on the sheet for: <b>" + who.map((n) => n + " (" + Object.keys(S.pool[n]).length + ")").join(", ") +

@@ -118,7 +118,7 @@
 <script type="module">
 import { VERSION, CHANGES, LABEL, TRACKS, keyOf } from "./catalog.js";
 import {
-  TARGET_SONGS, MAX_PER_ARTIST, STATUSES, STATUS_LABEL, eraLabel,
+  TARGET_SONGS, MIN_SONGS, MAX_SONGS, MAX_PER_ARTIST, STATUSES, STATUS_LABEL, eraLabel,
   scoreSongs, generateSet, searchLinks, parseLen, mmss, moveKey,
   tuningFor, statusOf,
 } from "./setlist.js";
@@ -194,9 +194,11 @@ const stateOf = (k) => S.plan.states[k] || "";
 const includes = () => Object.keys(S.plan.states).filter((k) => S.plan.states[k] === "in");
 const excludes = () => Object.keys(S.plan.states).filter((k) => S.plan.states[k] === "out");
 
+const songLimit = () => S.plan.songLimit || TARGET_SONGS;
+
 function buildSet() {
   return generateSet(scoreSongs(S.list, S.pool), {
-    targetSongs: TARGET_SONGS,
+    targetSongs: songLimit(),
     maxPerArtist: MAX_PER_ARTIST,
     include: includes(),
     exclude: excludes(),
@@ -330,6 +332,62 @@ function voteEditor(r) {
   return ed;
 }
 
+/**
+ * How many songs the set should hold. Owner-editable; everyone else just reads
+ * it. Saving rewrites the order too when one is set by hand, so a shrunk set
+ * doesn't leave stale keys pointing at dropped songs.
+ */
+function limitControl() {
+  const box = document.createElement("div");
+  box.className = "limitbar";
+  const owner = isOwner();
+  box.innerHTML = '<span class="lbl">Songs in the set</span>';
+
+  if (!owner) {
+    box.insertAdjacentHTML("beforeend", '<span class="val mono">' + songLimit() + '</span>' +
+      '<span class="note" style="margin:0">Set by ' + OWNER + '</span>');
+    return box;
+  }
+
+  const apply = (n) => {
+    const next = Math.min(MAX_SONGS, Math.max(MIN_SONGS, n));
+    if (next === songLimit()) return;
+    S.plan.songLimit = next;
+    const gen = buildSet();
+    const order = S.plan.order.length && gen.ok ? gen.ordered.map((r) => r.k) : S.plan.order;
+    withSaving(saveSetlist(S.plan.states, order, next).then(draw));
+    draw();
+  };
+
+  const minus = document.createElement("button");
+  minus.textContent = "−";
+  minus.title = "One fewer song";
+  minus.disabled = songLimit() <= MIN_SONGS;
+  minus.onclick = () => apply(songLimit() - 1);
+
+  const input = document.createElement("input");
+  input.type = "number";
+  input.className = "val mono";
+  input.min = MIN_SONGS;
+  input.max = MAX_SONGS;
+  input.value = songLimit();
+  input.onchange = () => apply(Math.round(Number(input.value)));
+  input.onkeydown = (e) => { if (e.key === "Enter") input.blur(); };
+
+  const plus = document.createElement("button");
+  plus.textContent = "+";
+  plus.title = "One more song";
+  plus.disabled = songLimit() >= MAX_SONGS;
+  plus.onclick = () => apply(songLimit() + 1);
+
+  box.appendChild(minus);
+  box.appendChild(input);
+  box.appendChild(plus);
+  box.insertAdjacentHTML("beforeend",
+    '<span class="note" style="margin:0">Forced-in songs still count toward this.</span>');
+  return box;
+}
+
 /* ---------- crew readiness ---------- */
 /**
  * One row per band member: a stacked bar over the songs actually in the set,
@@ -403,10 +461,12 @@ function drawSet(gen) {
 
   el.innerHTML = '<div class="sethead"><h3>The set — ' + list.length + ' songs</h3>' +
     '<div class="clock mono">' + mmss(run) + '</div></div>' +
-    '<div class="meter"><i style="width:' + Math.min(list.length / TARGET_SONGS * 100, 100) + '%"></i>' +
-    '<div class="ticks">' + '<span></span>'.repeat(TARGET_SONGS) + '</div></div>' +
-    '<div class="meterfoot"><span>0</span><span>target ' + TARGET_SONGS + ' · max ' + MAX_PER_ARTIST +
-    ' per artist</span><span>' + TARGET_SONGS + '</span></div>';
+    '<div class="meter"><i style="width:' + Math.min(list.length / songLimit() * 100, 100) + '%"></i>' +
+    '<div class="ticks">' + '<span></span>'.repeat(songLimit()) + '</div></div>' +
+    '<div class="meterfoot"><span>0</span><span>max ' + MAX_PER_ARTIST +
+    ' per artist</span><span>' + songLimit() + '</span></div>';
+
+  el.appendChild(limitControl());
 
   const bar = document.createElement("div");
   bar.className = "orderbar " + (S.plan.order.length ? "saved" : "");

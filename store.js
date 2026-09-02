@@ -7,7 +7,7 @@
  * has to re-derive it.
  */
 import { TRACKS, BAND, OWNER, VERSION, NB, keyOf, buildSongs } from "./catalog.js";
-import { parseLen, voteWeight, normStatus } from "./setlist.js";
+import { parseLen, voteWeight, normStatus, normLimit, TARGET_SONGS } from "./setlist.js";
 
 export const VOTES_API = "/api/votes";
 export const PLAN_API = "/api/plan";
@@ -20,7 +20,7 @@ export const S = {
   poolTs: {},
   custom: [],
   tunings: {},
-  plan: { states: {}, order: [], progress: {} },
+  plan: { states: {}, order: [], progress: {}, songLimit: TARGET_SONGS },
   list: buildSongs([]),
   storageOK: null,
   lastErr: "",
@@ -121,6 +121,7 @@ function absorb(data) {
       states: data.plan.states || {},
       order: data.plan.order || [],
       progress: data.plan.progress || {},
+      songLimit: normLimit(data.plan.songLimit, TARGET_SONGS),
     };
   }
   mergeDefs(data.custom || []);
@@ -246,7 +247,14 @@ async function postPlan(body) {
     });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || "HTTP " + r.status);
-    if (d.plan) S.plan = { states: d.plan.states || {}, order: d.plan.order || [], progress: d.plan.progress || {} };
+    if (d.plan) {
+      S.plan = {
+        states: d.plan.states || {},
+        order: d.plan.order || [],
+        progress: d.plan.progress || {},
+        songLimit: normLimit(d.plan.songLimit, TARGET_SONGS),
+      };
+    }
     ok("");
     return true;
   } catch (e) {
@@ -256,12 +264,22 @@ async function postPlan(body) {
   }
 }
 
-/** Owner-only: which songs are forced in or out, and the running order. */
-export function saveSetlist(states, order) {
+/**
+ * Owner-only: which songs are forced in or out, the running order, and how many
+ * songs the set should hold. Pass a limit only when changing it — leaving it
+ * undefined keeps whatever the sheet holds.
+ */
+export function saveSetlist(states, order, limit) {
   S.plan.states = { ...states };
   S.plan.order = (order || []).slice();
-  log("setlist saved: " + Object.keys(states).length + " overrides, " + S.plan.order.length + " ordered");
-  return postPlan({ kind: "setlist", states: S.plan.states, order: S.plan.order });
+  const body = { kind: "setlist", states: S.plan.states, order: S.plan.order };
+  if (limit !== undefined) {
+    S.plan.songLimit = normLimit(limit, S.plan.songLimit);
+    body.limit = S.plan.songLimit;
+  }
+  log("setlist saved: " + Object.keys(states).length + " overrides, " + S.plan.order.length +
+    " ordered, limit " + S.plan.songLimit);
+  return postPlan(body);
 }
 
 /** Anyone: set your own learning status for one song. */

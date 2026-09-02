@@ -357,3 +357,22 @@
   #sv .metalbl{width:100%}
 }
 @media (prefers-reduced-motion:reduce){#sv *{transition:none!important}}
+
+/* ---------- song-limit control ---------- */
+#sv .limitbar{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;margin:0 0 var(--s3);
+  padding:var(--s3);border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+#sv .limitbar .lbl{font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;
+  font-family:'Barlow Condensed',sans-serif;color:var(--cream);margin-right:var(--s1)}
+#sv .limitbar button{width:38px;height:38px;border:1px solid var(--line);border-radius:var(--r);
+  color:var(--lamp);font-size:20px;line-height:1;flex:none}
+#sv .limitbar button:hover:not(:disabled){border-color:var(--lamp);background:var(--panel2)}
+#sv .limitbar button:disabled{opacity:.25;cursor:default}
+#sv .limitbar .val{width:64px;text-align:center;font-size:19px;font-weight:600;color:var(--lamp);
+  padding:7px 4px;flex:none}
+#sv input.val{background:var(--panel2);border:1px solid var(--line)}
+#sv input.val::-webkit-outer-spin-button,#sv input.val::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+#sv input.val{-moz-appearance:textfield}
+#sv .limitbar .note{font-size:12px;margin-left:auto;text-align:right}
+@media (max-width:640px){
+  #sv .limitbar .note{margin-left:0;width:100%;text-align:left}
+}

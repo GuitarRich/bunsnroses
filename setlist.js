@@ -2,7 +2,9 @@
 
 export const WEIGHTS = { 3: 6, 2: 2, 1: 1, 0: -4 };
 /** One set. The show is sized by song count, not by a clock target. */
-export const TARGET_SONGS = 17;
+export const TARGET_SONGS = 17;   // default only — the sheet's Settings tab wins
+export const MIN_SONGS = 1;
+export const MAX_SONGS = 60;
 export const MAX_PER_ARTIST = 1;
 export const BAND = ["Rich", "Joel", "Anders", "Pete"];
 export const TAGS = ["opener", "closer", "ballad", "dedication", "slow"];
@@ -375,6 +377,30 @@ export function statusTally(progress, k, members) {
   return out;
 }
 
+/**
+ * Clamp a hand-typed song limit into something buildable. Anything unreadable
+ * falls back to the default rather than collapsing the set to nothing.
+ */
+export function normLimit(v, fallback) {
+  const base = Number(fallback) > 0 ? Math.round(Number(fallback)) : TARGET_SONGS;
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n) || n <= 0) return base;
+  return Math.min(MAX_SONGS, Math.max(MIN_SONGS, n));
+}
+
+/** Column layout of the Settings sheet tab. */
+export const SETTINGS_HEADERS = ["Setting", "Value"];
+
+/** Settings sheet rows -> { songLimit }. Unknown rows are ignored. */
+export function parseSettings(rows) {
+  const out = { songLimit: TARGET_SONGS };
+  (rows || []).forEach((r) => {
+    const name = String(r[0] || "").trim().toLowerCase();
+    if (name === "song limit") out.songLimit = normLimit(r[1], TARGET_SONGS);
+  });
+  return out;
+}
+
 /** Column layout of the Progress sheet tab before the per-member columns. */
 export const PROGRESS_BASE = ["Key", "Title", "Artist"];
 
@@ -508,6 +534,11 @@ const api = {
   songKey,
   statusOf,
   statusTally,
+  normLimit,
+  parseSettings,
+  SETTINGS_HEADERS,
+  MIN_SONGS,
+  MAX_SONGS,
   parseSetlist,
   parseProgress,
   PROGRESS_BASE,

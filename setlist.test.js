@@ -19,6 +19,10 @@ import {
   statusTally,
   parseSetlist,
   parseProgress,
+  parseSettings,
+  normLimit,
+  TARGET_SONGS,
+  MAX_SONGS,
   eraLabel,
   TUNING_SEEDS,
 } from "./setlist.js";
@@ -308,6 +312,41 @@ describe("plan sheet parsing", () => {
   it("returns an empty map for an empty tab", () => {
     assert.deepEqual(parseProgress([]), {});
     assert.deepEqual(parseProgress([["Key", "Title", "Artist"]]), {});
+  });
+});
+
+describe("song limit", () => {
+  it("clamps a hand-typed limit into range", () => {
+    assert.equal(normLimit(12), 12);
+    assert.equal(normLimit("12"), 12);
+    assert.equal(normLimit(4.6), 5);
+    assert.equal(normLimit(9999), MAX_SONGS);
+    assert.equal(normLimit(0), TARGET_SONGS);
+    assert.equal(normLimit(-3), TARGET_SONGS);
+    assert.equal(normLimit("nonsense"), TARGET_SONGS);
+    assert.equal(normLimit(undefined), TARGET_SONGS);
+  });
+
+  it("falls back to the value given, not just the default", () => {
+    assert.equal(normLimit("", 20), 20);
+    assert.equal(normLimit(null, 20), 20);
+  });
+
+  it("reads the limit off the Settings tab, case-insensitively", () => {
+    assert.deepEqual(parseSettings([["Song limit", 21]]), { songLimit: 21 });
+    assert.deepEqual(parseSettings([["  SONG LIMIT ", "21"]]), { songLimit: 21 });
+  });
+
+  it("defaults when the tab is empty or holds junk", () => {
+    assert.deepEqual(parseSettings([]), { songLimit: TARGET_SONGS });
+    assert.deepEqual(parseSettings([["Song limit", "many"]]), { songLimit: TARGET_SONGS });
+    assert.deepEqual(parseSettings([["Unrelated", 5]]), { songLimit: TARGET_SONGS });
+  });
+
+  it("drives how many songs the set takes", () => {
+    const rows = [1, 2, 3, 4, 5].map((i) => song({ k: "s" + i, sum: 10 - i, artist: "A" + i }));
+    assert.equal(selectSet(rows, { targetSongs: 2 }).keep.length, 2);
+    assert.equal(selectSet(rows, { targetSongs: 5 }).keep.length, 5);
   });
 });
 
