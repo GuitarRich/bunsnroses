@@ -1,0 +1,786 @@
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="./app.css" rel="stylesheet">
+
+<div id="sv">
+  <header><div class="wrap plate">
+    <div class="lamp"></div>
+    <h1 class="disp">Bun's &amp; Roses<small>Setlist &amp; Standings &middot; <span id="ver"></span></small></h1>
+    <div class="status" id="status">Checking</div>
+  </div></header>
+
+  <div class="wrap">
+    <div id="banner" class="banner hide"></div>
+
+    <div id="gate" class="gate">
+      <div class="eyebrow">Who are you?</div>
+      <h2 class="disp">Sign in to the setlist</h2>
+      <p class="note">Your name marks which learning status is yours. The access code is the same one the voting page asks for.</p>
+      <div class="names" id="names"></div>
+      <input id="nameIn" placeholder="Or type your name" maxlength="18" autocomplete="off">
+      <input id="secretIn" placeholder="Access code" type="password" autocomplete="off" style="margin-top:8px">
+      <button class="go disp" id="start">Open the setlist</button>
+      <p class="note" id="verNote" style="margin-top:11px"></p>
+      <div id="gateErr" class="err hide"></div>
+    </div>
+
+    <div id="main" class="hide">
+      <div class="sub">
+        <a href="./index.html">&larr; Back to voting</a>
+        <span id="whoami"></span>
+      </div>
+      <div class="voters mono" id="voters"></div>
+
+      <div id="crewBox"></div>
+      <div id="setBox"></div>
+
+      <div class="actions">
+        <button class="btn" id="copySet">Copy setlist</button>
+        <button class="btn" id="copyRaw">Copy all votes (CSV)</button>
+      </div>
+
+      <div class="merge" id="poolPanel">
+        <h4 class="disp">Ranking &mdash; every song</h4>
+        <p class="note" id="poolNote">Everything the band scored, best first. Songs below the line missed the cut &mdash; the reason is tagged on the row.</p>
+        <div class="searchrow"><input id="poolFind" placeholder="Filter by song or artist" autocomplete="off"></div>
+        <div class="legend" id="poolLegend"></div>
+        <div id="poolList"></div>
+      </div>
+
+      <div class="merge" id="addPanel">
+        <h4 class="disp" id="addHead">Add a song</h4>
+        <p class="note" id="addNote"></p>
+        <div id="addForm">
+          <div class="addgrid">
+            <input id="aTitle" placeholder="Song title" maxlength="60">
+            <input id="aArtist" placeholder="Artist" maxlength="40">
+            <input id="aDur" placeholder="Length (3:45)" maxlength="6">
+            <select id="aSet"><option value="1">Era &mdash; 70s / 80s</option><option value="2">Era &mdash; 90s and after</option></select>
+            <select id="aEnergy">
+              <option value="">Energy (leave blank)</option>
+              <option value="1">1 &mdash; lowest</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5 &mdash; highest</option>
+            </select>
+            <select id="aLead">
+              <option value="">Lead vocal (optional)</option>
+              <option>Rich</option><option>Joel</option><option>Anders</option><option>Pete</option>
+            </select>
+          </div>
+          <div class="tagsel" id="aTags">
+            <label><input type="checkbox" value="opener"> Opener</label>
+            <label><input type="checkbox" value="closer"> Closer</label>
+            <label><input type="checkbox" value="ballad"> Ballad</label>
+            <label><input type="checkbox" value="dedication"> Dedication</label>
+            <label><input type="checkbox" value="slow"> Slow</label>
+          </div>
+          <button class="btn" id="addTrack">Add to the list</button>
+          <div id="addMsg"></div>
+        </div>
+        <div id="customList"></div>
+      </div>
+
+      <div class="merge">
+        <h4 class="disp">Pool the band's votes</h4>
+        <p class="note">Everyone taps <b>Copy my code</b> and texts you the result. Paste the codes below &mdash; one per line &mdash; or drop in a CSV you exported earlier. The box takes either.</p>
+        <div class="actions" style="margin-top:11px">
+          <button class="btn ghost" id="copyMine">Copy my code</button>
+          <button class="btn ghost" id="copyAll">Copy all codes</button>
+          <button class="btn ghost" id="clearPool">Clear pooled</button>
+        </div>
+        <textarea id="pasteBox" rows="3" placeholder="Paste codes (one per line) or a whole CSV"></textarea>
+        <div class="filerow">
+          <label class="btn ghost" for="csvFile">Choose a CSV file</label>
+          <input type="file" id="csvFile" accept=".csv,text/csv">
+          <span id="fileName" class="note"></span>
+        </div>
+        <button class="btn" id="addCodes">Add these votes</button>
+        <div id="mergeMsg"></div>
+      </div>
+
+      <div class="merge">
+        <h4 class="disp">Storage check</h4>
+        <p class="note">If votes go missing, run this and send Rich the output.</p>
+        <div class="actions" style="margin-top:11px">
+          <button class="btn ghost" id="runDiag">Run check</button>
+          <button class="btn ghost" id="copyDiag">Copy report</button>
+        </div>
+        <pre id="diagOut" class="diag"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { VERSION, CHANGES, LABEL, TRACKS, keyOf } from "./catalog.js";
+import {
+  TARGET_SONGS, MAX_PER_ARTIST, STATUSES, STATUS_LABEL, eraLabel,
+  scoreSongs, generateSet, searchLinks, parseLen, mmss, moveKey,
+  tuningFor, statusOf,
+} from "./setlist.js";
+import {
+  S, BAND, OWNER, VOTES_API, onStatus, isOwner, voters, log, relist, persist,
+  pull, pushOthers, saveSetlist, saveStatus, mkCode, rdCode, mergeDefs, importCSV, voteWeight,
+} from "./store.js";
+
+const $ = (id) => document.getElementById(id);
+const tuneOf = (r) => tuningFor(S.tunings, r.name, r.artist);
+const SHORT = { "not-started": "Not started", "in-progress": "Learning", "know-it": "Know it" };
+const INITIALS = (n) => n;   // full names — the chips have room, and initials read as noise
+
+let openRow = null;       // key of the song whose vote editor is open
+let poolOpen = true;      // "Ranking — every song" list visibility
+let poolFilter = "";
+let saving = false;
+
+/* ---------- connection banner ---------- */
+function setStatus() {
+  const el = $("status");
+  if (saving) { el.textContent = "Saving"; el.className = "status"; return; }
+  if (S.storageOK === null) { el.textContent = "Checking"; el.className = "status"; return; }
+  if (S.storageOK) {
+    el.textContent = "Saved"; el.className = "status ok"; $("banner").classList.add("hide");
+  } else if (/wrong access code/i.test(S.lastErr || "")) {
+    el.textContent = "Wrong code"; el.className = "status warn";
+    $("banner").innerHTML = "<b>Wrong access code.</b> Type the exact <b>APP_SECRET</b> from Vercel, then sign in again.";
+    $("banner").classList.remove("hide");
+  } else {
+    el.textContent = "Not saving"; el.className = "status warn";
+    $("banner").innerHTML = "<b>Not reaching the server" + (S.lastErr ? " — " + S.lastErr : "") +
+      ".</b> Changes here won't stick. Tap <b>Copy my code</b> so nothing is lost.";
+    $("banner").classList.remove("hide");
+  }
+}
+onStatus(setStatus);
+function toast(msg) {
+  const b = $("banner"); b.innerHTML = msg; b.classList.remove("hide"); setTimeout(setStatus, 7000);
+}
+async function withSaving(p) {
+  saving = true; setStatus();
+  try { await p; } finally { saving = false; setStatus(); }
+}
+
+/* ---------- gate ---------- */
+BAND.forEach((n) => {
+  const b = document.createElement("button");
+  b.textContent = n;
+  b.onclick = () => { $("nameIn").value = n; begin(); };
+  $("names").appendChild(b);
+});
+$("start").onclick = begin;
+$("nameIn").addEventListener("keydown", (e) => { if (e.key === "Enter") begin(); });
+$("secretIn").addEventListener("keydown", (e) => { if (e.key === "Enter") begin(); });
+
+async function begin() {
+  const n = $("nameIn").value.trim();
+  S.secret = $("secretIn").value.trim();
+  if (!n) { $("gateErr").textContent = "Type a name so your learning status can be told apart."; $("gateErr").classList.remove("hide"); return; }
+  if (!S.secret) { $("gateErr").textContent = "Enter the access code (APP_SECRET in Vercel)."; $("gateErr").classList.remove("hide"); $("secretIn").focus(); return; }
+  try { localStorage.setItem("br_name", n); localStorage.setItem("br_secret", S.secret); } catch (e) {}
+  S.me = n;
+  $("gateErr").classList.add("hide");
+  $("gate").classList.add("hide"); $("main").classList.remove("hide");
+  await pull();
+  S.pool[S.me] = S.myVotes;
+  draw();
+}
+
+/* ---------- setlist plan ---------- */
+const stateOf = (k) => S.plan.states[k] || "";
+const includes = () => Object.keys(S.plan.states).filter((k) => S.plan.states[k] === "in");
+const excludes = () => Object.keys(S.plan.states).filter((k) => S.plan.states[k] === "out");
+
+function buildSet() {
+  return generateSet(scoreSongs(S.list, S.pool), {
+    targetSongs: TARGET_SONGS,
+    maxPerArtist: MAX_PER_ARTIST,
+    include: includes(),
+    exclude: excludes(),
+    orderKeys: S.plan.order,
+  });
+}
+
+function setState(k, st) {
+  if (!isOwner()) return;
+  const states = { ...S.plan.states };
+  if (st && states[k] !== st) states[k] = st; else delete states[k];
+  S.plan.states = states;
+  // Only rewrite the running order if one was already set by hand. Left alone,
+  // an in/out click keeps the order automatic instead of silently freezing it.
+  let order = S.plan.order;
+  if (order.length) {
+    const gen = buildSet();
+    if (gen.ok) order = gen.ordered.map((r) => r.k);
+  }
+  S.plan.order = order;
+  withSaving(saveSetlist(states, order).then(draw));
+  draw();
+}
+
+function reorder(from, to) {
+  if (!isOwner()) return;
+  const gen = buildSet();
+  if (!gen.ok) return;
+  const keys = moveKey(gen.ordered.map((r) => r.k), from, to);
+  S.plan.order = keys;
+  withSaving(saveSetlist(S.plan.states, keys).then(draw));
+  draw();
+}
+
+function resetOrder() {
+  if (!isOwner()) return;
+  S.plan.order = [];
+  withSaving(saveSetlist(S.plan.states, []).then(draw));
+  draw();
+}
+
+function clearOverrides() {
+  if (!isOwner()) return;
+  S.plan.states = {};
+  withSaving(saveSetlist({}, S.plan.order).then(draw));
+  draw();
+}
+
+/* ---------- row pieces ---------- */
+function songTags(r) {
+  let html = r.added ? '<span class="tag">Added</span>' : "";
+  const st = stateOf(r.k);
+  if (st === "in") html += '<span class="tag in">forced in</span>';
+  if (st === "out") html += '<span class="tag out">held out</span>';
+  if (r.why === "CAP") html += '<span class="tag cap">CAP</span>';
+  if (r.why === "neg") html += '<span class="tag neg">veto</span>';
+  if (r.why === "count") html += '<span class="tag count">no room</span>';
+  return html;
+}
+function linkRow(r) {
+  const L = searchLinks(r);
+  return '<div class="links">' +
+    '<a href="' + L.ug + '" target="_blank" rel="noopener">Guitar</a>' +
+    '<a href="' + L.songsterr + '" target="_blank" rel="noopener">Bass</a>' +
+    '<a href="' + L.musescore + '" target="_blank" rel="noopener">Score</a>' +
+    '<a href="' + L.genius + '" target="_blank" rel="noopener">Lyrics</a>' +
+    '</div>';
+}
+/**
+ * Where the whole band stands on one song — a named chip each, coloured by
+ * status. Named rather than anonymous pips so you can see *who* still has work
+ * to do without counting positions.
+ */
+function crewChips(k) {
+  const chips = BAND.map((n) => {
+    const s = statusOf(S.plan.progress, k, n);
+    const cls = s === "know-it" ? "k" : s === "in-progress" ? "p" : "";
+    return '<span class="chip ' + cls + (n === S.me ? " me" : "") + '" title="' + n + ' — ' + STATUS_LABEL[s] + '">' +
+      '<b></b>' + INITIALS(n) + '</span>';
+  }).join("");
+  return '<div class="crewchips">' + chips + '</div>';
+}
+/** Your own status buttons. Only shown for songs actually in the set. */
+function statusButtons(k) {
+  const mine = statusOf(S.plan.progress, k, S.me);
+  const el = document.createElement("div");
+  el.className = "stat";
+  STATUSES.forEach((s) => {
+    const b = document.createElement("button");
+    b.dataset.s = s;
+    b.textContent = SHORT[s];
+    b.title = STATUS_LABEL[s];
+    if (mine === s) b.classList.add("on");
+    b.onclick = (e) => { e.stopPropagation(); withSaving(saveStatus(k, s).then(draw)); draw(); };
+    el.appendChild(b);
+  });
+  return el;
+}
+function inOutButtons(r) {
+  const el = document.createElement("div");
+  el.className = "inout";
+  [["in", "In"], ["out", "Out"]].forEach(([st, txt]) => {
+    const b = document.createElement("button");
+    b.dataset.st = st;
+    b.textContent = txt;
+    b.title = st === "in" ? "Always in the set" : "Never in the set";
+    if (stateOf(r.k) === st) b.classList.add("on");
+    b.onclick = (e) => { e.stopPropagation(); setState(r.k, st); };
+    el.appendChild(b);
+  });
+  return el;
+}
+function voteEditor(r) {
+  const ed = document.createElement("div");
+  ed.className = "editor";
+  ed.innerHTML = '<div class="lbl">Your vote — ' + r.name + '</div><div class="opts"></div>';
+  const opts = ed.querySelector(".opts");
+  [3, 2, 1, 0].forEach((v) => {
+    const b = document.createElement("button");
+    b.dataset.v = v; b.textContent = LABEL[v];
+    if (S.myVotes[r.k] === v) b.classList.add("on");
+    b.onclick = (e) => {
+      e.stopPropagation();
+      if (S.myVotes[r.k] === v) delete S.myVotes[r.k]; else S.myVotes[r.k] = v;
+      S.pool[S.me] = S.myVotes;
+      withSaving(persist().then(draw));
+      draw();
+    };
+    opts.appendChild(b);
+  });
+  return ed;
+}
+
+/* ---------- crew readiness ---------- */
+/**
+ * One row per band member: a stacked bar over the songs actually in the set,
+ * so "where is everyone" is answerable in one glance rather than by reading
+ * down the whole setlist.
+ */
+function drawCrew(gen) {
+  const box = $("crewBox");
+  box.innerHTML = "";
+  if (!gen.ok) return;
+  const keys = gen.ordered.map((r) => r.k);
+  const n = keys.length;
+  if (!n) return;
+
+  const rows = BAND.map((name) => {
+    const t = { "not-started": 0, "in-progress": 0, "know-it": 0 };
+    keys.forEach((k) => { t[statusOf(S.plan.progress, k, name)]++; });
+    return { name, ...t };
+  });
+  const bandKnow = rows.reduce((a, r) => a + r["know-it"], 0);
+  const pct = Math.round((bandKnow / (n * BAND.length)) * 100);
+
+  const el = document.createElement("div");
+  el.className = "crew";
+  el.innerHTML = '<div class="crewhead"><h3>Where the band is</h3>' +
+    '<div class="sum">' + n + ' songs in the set · <b>' + pct + '%</b> band-ready</div></div>';
+
+  rows.forEach((r) => {
+    const row = document.createElement("div");
+    row.className = "crewrow" + (r.name === S.me ? " you" : "");
+    const w = (v) => (v / n) * 100 + "%";
+    row.innerHTML =
+      '<div class="nm">' + r.name + (r.name === S.me ? '<em>you</em>' : '') + '</div>' +
+      '<div class="crewbar" title="' + r["know-it"] + ' know it · ' + r["in-progress"] +
+        ' learning · ' + r["not-started"] + ' not started">' +
+        '<i class="k" style="width:' + w(r["know-it"]) + '"></i>' +
+        '<i class="p" style="width:' + w(r["in-progress"]) + '"></i>' +
+        '<i class="n" style="width:' + w(r["not-started"]) + '"></i>' +
+      '</div>' +
+      '<div class="crewnum">' + r["know-it"] + '<small>/' + n + '</small></div>';
+    el.appendChild(row);
+  });
+
+  const key = document.createElement("div");
+  key.className = "statkey";
+  key.innerHTML = '<span><i class="k"></i>Know song</span><span><i class="p"></i>In progress</span>' +
+    '<span><i class="n"></i>Not started</span>';
+  el.appendChild(key);
+  box.appendChild(el);
+}
+
+/* ---------- the set ---------- */
+let dragFrom = -1;
+
+function drawSet(gen) {
+  const box = $("setBox");
+  box.innerHTML = "";
+  const el = document.createElement("div");
+  el.className = "set";
+
+  if (!gen.ok) {
+    el.innerHTML = '<div class="sethead"><h3>The set</h3></div><div class="banner fail">' + gen.error + '</div>';
+    box.appendChild(el);
+    return;
+  }
+
+  const list = gen.ordered;
+  const run = list.reduce((a, r) => a + r.dur, 0);
+  const owner = isOwner();
+  const ready = list.filter((r) => statusOf(S.plan.progress, r.k, S.me) === "know-it").length;
+
+  el.innerHTML = '<div class="sethead"><h3>The set — ' + list.length + ' songs</h3>' +
+    '<div class="clock mono">' + mmss(run) + '</div></div>' +
+    '<div class="meter"><i style="width:' + Math.min(list.length / TARGET_SONGS * 100, 100) + '%"></i>' +
+    '<div class="ticks">' + '<span></span>'.repeat(TARGET_SONGS) + '</div></div>' +
+    '<div class="meterfoot"><span>0</span><span>target ' + TARGET_SONGS + ' · max ' + MAX_PER_ARTIST +
+    ' per artist</span><span>' + TARGET_SONGS + '</span></div>';
+
+  const bar = document.createElement("div");
+  bar.className = "orderbar " + (S.plan.order.length ? "saved" : "");
+  bar.innerHTML = '<span>Running order: <b>' + (S.plan.order.length ? "set by hand" : "automatic") + '</b></span>' +
+    '<span style="margin-left:auto">You know <b>' + ready + '</b> of ' + list.length + '</span>';
+  if (owner) {
+    if (S.plan.order.length) {
+      const revert = document.createElement("button");
+      revert.textContent = "Back to automatic";
+      revert.onclick = resetOrder;
+      bar.appendChild(revert);
+    }
+    if (Object.keys(S.plan.states).length) {
+      const clr = document.createElement("button");
+      clr.textContent = "Clear in/out";
+      clr.onclick = clearOverrides;
+      bar.appendChild(clr);
+    }
+  }
+  el.appendChild(bar);
+
+  const key = document.createElement("p");
+  key.className = "hint";
+  key.innerHTML = 'The <b class="mine-label">You</b> row sets your own status. The <b>Band</b> row shows where everyone else is on that song.';
+  el.appendChild(key);
+
+  if (!list.length) {
+    const p = document.createElement("div");
+    p.className = "empty";
+    p.textContent = "No songs in the set yet — score some songs, or mark a few In below.";
+    el.appendChild(p);
+    box.appendChild(el);
+    return;
+  }
+
+  const body = document.createElement("div");
+  list.forEach((r, k) => {
+    const row = document.createElement("div");
+    row.className = "row setrow" + (openRow === r.k ? " open" : "");
+    row.dataset.k = r.k;
+    if (owner) row.draggable = true;
+
+    row.innerHTML =
+      (owner ? '<div class="handle" title="Drag to reorder">:::</div>' +
+        '<div class="arrows">' +
+        '<button data-dir="-1" ' + (k === 0 ? "disabled" : "") + '>&#9650;</button>' +
+        '<button data-dir="1" ' + (k === list.length - 1 ? "disabled" : "") + '>&#9660;</button>' +
+        '</div>' : "") +
+      '<div class="rk mono">' + String(k + 1).padStart(2, "0") + '</div>' +
+      '<div class="rt"><b>' + r.name + songTags(r) +
+        (tuneOf(r) ? '<span class="tag tune">' + tuneOf(r) + '</span>' : "") + '</b>' +
+      '<span>' + r.artist + (r.lead ? " · " + r.lead : "") + ' · ' + mmss(r.dur) + ' · ' + eraLabel(r) + '</span>' +
+      linkRow(r) +
+      '<div class="rowmeta"><span class="metalbl">You</span></div>' +
+      '<div class="rowmeta"><span class="metalbl">Band</span>' + crewChips(r.k) + '</div>' +
+      (owner ? '<div class="rowmeta"><span class="metalbl">Set</span></div>' : "") +
+      '</div>' +
+      '<div class="rs mono">' + r.sum + '</div>';
+
+    const metaRows = row.querySelectorAll(".rowmeta");
+    metaRows[0].appendChild(statusButtons(r.k));
+    if (owner) metaRows[2].appendChild(inOutButtons(r));
+
+    row.querySelectorAll(".arrows button").forEach((btn) => {
+      btn.onclick = (e) => { e.stopPropagation(); reorder(k, k + +btn.dataset.dir); };
+    });
+    row.ondragstart = (e) => {
+      dragFrom = k; row.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", r.k);
+    };
+    row.ondragend = () => row.classList.remove("dragging");
+    row.ondragover = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; };
+    row.ondrop = (e) => {
+      e.preventDefault();
+      if (dragFrom < 0 || dragFrom === k) return;
+      reorder(dragFrom, k);
+      dragFrom = -1;
+    };
+    row.onclick = (e) => {
+      if (e.target.closest("a,button,.handle")) return;
+      openRow = openRow === r.k ? null : r.k;
+      draw();
+    };
+    body.appendChild(row);
+    if (openRow === r.k) body.appendChild(voteEditor(r));
+  });
+  el.appendChild(body);
+  box.appendChild(el);
+}
+
+/* ---------- the full ranking ---------- */
+function drawPool(gen) {
+  const who = voters();
+  $("poolLegend").innerHTML = who.map((n) => '<i>' + n + '</i>').join("") + '<i class="pad"></i>';
+  const list = $("poolList");
+  list.innerHTML = "";
+  if (!gen.ok) { list.innerHTML = '<p class="empty">' + gen.error + '</p>'; return; }
+
+  const f = poolFilter.trim().toLowerCase();
+  const match = (r) => !f || (r.name + " " + r.artist).toLowerCase().includes(f);
+  const owner = isOwner();
+
+  const addRank = (r, k, cut) => {
+    const row = document.createElement("div");
+    row.className = "row" + (cut ? " cut" : "") + (openRow === r.k ? " open" : "");
+    const cells = who.map((n) => {
+      const v = S.pool[n][r.k];
+      return '<div class="cell ' + (v === undefined ? "none" : "v" + v) + (n === S.me ? " mine" : "") + '">' +
+        (v === undefined ? "·" : v) + '</div>';
+    }).join("");
+    row.innerHTML = '<div class="rk mono">' + (k + 1) + '</div>' +
+      '<div class="rt"><b>' + r.name + songTags(r) + '</b><span>' + r.artist + ' · ' + mmss(r.dur) + '</span></div>' +
+      '<div class="grid">' + cells + '</div><div class="rs mono">' + r.sum + '</div>';
+    if (owner) row.insertBefore(inOutButtons(r), row.querySelector(".grid"));
+    row.onclick = (e) => {
+      if (e.target.closest("a,button")) return;
+      openRow = openRow === r.k ? null : r.k;
+      draw();
+    };
+    list.appendChild(row);
+    if (openRow === r.k) list.appendChild(voteEditor(r));
+  };
+
+  const keep = gen.keep.filter(match);
+  const rest = gen.rest.filter(match);
+  keep.forEach((r, k) => addRank(r, k, false));
+  if (rest.length) {
+    const d = document.createElement("div");
+    d.className = "divider";
+    d.textContent = "below the line";
+    list.appendChild(d);
+    rest.forEach((r, k) => addRank(r, keep.length + k, true));
+  }
+  if (!keep.length && !rest.length) list.innerHTML = '<p class="empty">Nothing matches that filter.</p>';
+}
+$("poolFind").oninput = (e) => { poolFilter = e.target.value; draw(); };
+
+/* ---------- added songs ---------- */
+function drawCustom() {
+  const owner = isOwner();
+  $("addForm").classList.toggle("hide", !owner);
+  $("addHead").textContent = owner ? "Add a song" : "Songs added by " + OWNER;
+  $("addNote").textContent = owner
+    ? "Anything you add goes to the end of the list, so nobody's existing votes shift. Added songs travel inside the codes, so they reach the rest of the band too."
+    : "Only " + OWNER + " can add songs to the list. Send suggestions his way and they'll appear here once he adds them.";
+  const box = $("customList");
+  box.innerHTML = "";
+  if (!S.custom.length) { box.innerHTML = '<p class="note">Nothing added yet.</p>'; return; }
+  S.custom.slice().sort((a, b) => (a.k < b.k ? -1 : 1)).forEach((c) => {
+    const anyVotes = Object.keys(S.pool).some((n) => S.pool[n][c.k] !== undefined);
+    const row = document.createElement("div");
+    row.className = "crow";
+    row.innerHTML = '<b>' + c.name + '</b><span>' + c.artist + '</span><span>' + mmss(c.dur) + '</span>' +
+      '<span>' + eraLabel(c) + '</span>' + (c.energy ? '<span>E' + c.energy + '</span>' : "") + (c.lead ? '<span>' + c.lead + '</span>' : "");
+    if (owner) {
+      const rm = document.createElement("button");
+      rm.textContent = anyVotes ? "Voted" : "Remove";
+      rm.disabled = anyVotes;
+      if (anyVotes) rm.style.color = "var(--dim)";
+      rm.onclick = () => {
+        S.custom = S.custom.filter((x) => x.k !== c.k);
+        relist();
+        withSaving(persist().then(draw));
+        draw();
+      };
+      row.appendChild(rm);
+    }
+    box.appendChild(row);
+  });
+}
+
+$("addTrack").onclick = () => {
+  if (!isOwner()) return;
+  const title = $("aTitle").value.trim(), artist = $("aArtist").value.trim(),
+    durRaw = $("aDur").value.trim(), set = +$("aSet").value, m = $("addMsg");
+  if (!title || !artist) { m.className = "err"; m.textContent = "Needs a title and an artist."; return; }
+  const dur = parseLen(durRaw);
+  if (!dur) { m.className = "err"; m.textContent = "Length should look like 3:45."; return; }
+  const k = keyOf(title, artist);
+  if (S.custom.some((c) => c.k === k) || TRACKS.some((t) => keyOf(t[0], t[1]) === k)) {
+    m.className = "err"; m.textContent = "That song is already on the list."; return;
+  }
+  const energy = +$("aEnergy").value || "";
+  const lead = $("aLead").value.trim();
+  const tags = [...$("aTags").querySelectorAll("input:checked")].map((i) => i.value).join(",");
+  S.custom.push({ k, name: title, artist, dur, set, energy, tags, lead });
+  relist();
+  $("aTitle").value = ""; $("aArtist").value = ""; $("aDur").value = "";
+  $("aEnergy").value = ""; $("aLead").value = "";
+  $("aTags").querySelectorAll("input").forEach((i) => (i.checked = false));
+  m.className = "okmsg";
+  m.textContent = 'Added "' + title + '". It sits at the end of the list — nobody\'s votes moved.';
+  withSaving(persist().then(draw));
+  draw();
+};
+
+/* ---------- render ---------- */
+function draw() {
+  const y = window.scrollY;
+  const gen = buildSet();
+  const who = voters();
+  $("whoami").innerHTML = "Signed in as <b>" + S.me + "</b>" + (isOwner() ? " · you can edit the set" : " · set is read-only for you");
+  $("voters").innerHTML = who.length
+    ? '<b>Votes in:</b> ' + who.map((n) => n + " " + Object.keys(S.pool[n]).length + "/" + S.list.length).join(" &nbsp;·&nbsp; ")
+    : "No votes recorded yet.";
+  drawCrew(gen);
+  drawSet(gen);
+  drawPool(gen);
+  drawCustom();
+  window.scrollTo(0, y);
+}
+
+/* ---------- exports & pooling ---------- */
+function flash(btn, txt) { const o = btn.textContent; btn.textContent = txt; setTimeout(() => (btn.textContent = o), 1600); }
+function fallback(text, btn) {
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); flash(btn, "Copied"); } catch (e) { flash(btn, "Copy failed"); }
+  document.body.removeChild(ta);
+}
+function put(text, btn, okTxt) {
+  if (navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(text).then(() => flash(btn, okTxt)).catch(() => fallback(text, btn));
+  else fallback(text, btn);
+}
+
+$("copySet").onclick = () => {
+  const gen = buildSet();
+  let out = "BUN'S & ROSES — SETLIST  (" + VERSION + ")\n";
+  if (!gen.ok) { out += gen.error + "\n"; put(out, $("copySet"), "Copied"); return; }
+  const run = gen.ordered.reduce((a, r) => a + r.dur, 0);
+  out += "\n" + gen.ordered.length + " songs · " + mmss(run) + "\n\n";
+  gen.ordered.forEach((r, k) => {
+    const t = tuneOf(r);
+    out += (k + 1) + ". " + r.name + " - " + r.artist + (t ? "  [" + t + "]" : "") + "\n";
+  });
+  put(out, $("copySet"), "Copied");
+};
+
+$("copyRaw").onclick = () => {
+  const who = voters();
+  let csv = "Song,Artist,Year,Set,Duration,Added,In set," + who.join(",") + ",Total,Votes cast\n";
+  const gen = buildSet();
+  const inSet = new Set(gen.ok ? gen.ordered.map((r) => r.k) : []);
+  S.list.forEach((t) => {
+    const v = who.map((n) => (S.pool[n][t.k] === undefined ? "" : S.pool[n][t.k]));
+    const cast = v.filter((x) => x !== "");
+    const total = cast.reduce((a, b) => a + voteWeight(b), 0);
+    csv += '"' + t.name.replace(/"/g, '""') + '","' + t.artist.replace(/"/g, '""') + '",' + (t.year || "") + "," +
+      t.set + "," + mmss(t.dur) + "," + (t.added ? "yes" : "") + "," + (inSet.has(t.k) ? "yes" : "") + "," +
+      v.join(",") + "," + total + "," + cast.length + "\n";
+  });
+  put(csv, $("copyRaw"), "Copied");
+};
+
+$("copyMine").onclick = () => put(mkCode(S.me, S.myVotes), $("copyMine"), "Copied");
+$("copyAll").onclick = () => {
+  const lines = [mkCode(S.me, S.myVotes)];
+  Object.keys(S.pool).forEach((n) => { if (n !== S.me) lines.push(mkCode(n, S.pool[n])); });
+  put(lines.join("\n"), $("copyAll"), "Copied");
+};
+
+async function ingest(text) {
+  const m = $("mergeMsg");
+  const looksCSV = /(^|\n)\s*"?song"?\s*,/i.test(text) || text.split("\n")[0].split(",").length > 3;
+  if (looksCSV) {
+    const r = importCSV(text);
+    if (r.err) { m.className = "err"; m.textContent = r.err; return; }
+    m.className = "okmsg";
+    m.textContent = "Imported votes for " + r.applied.join(", ") + ". " + r.matched + " songs matched" +
+      (r.created ? ", " + r.created + " new song" + (r.created === 1 ? "" : "s") + " added" : "") +
+      (r.ignored ? ", " + r.ignored + " column(s) had no scores" : "") + "." +
+      (r.blocked ? " " + r.blocked + " unknown song(s) skipped — only " + OWNER + " can add songs." : "");
+    $("pasteBox").value = ""; $("fileName").textContent = "";
+    await persist();
+    const w = await pushOthers();
+    m.textContent += w.saved ? " Saved " + w.saved + " bandmate record" + (w.saved === 1 ? "" : "s") + " to the server." : "";
+    if (w.failed) { m.className = "err"; m.textContent += " " + w.failed + " could not be saved — keep the CSV as your backup."; }
+    draw(); return;
+  }
+  const lines = text.split(/[\n\r]+/).map((x) => x.trim()).filter(Boolean);
+  let added = 0, bad = 0, newSongs = 0;
+  lines.forEach((l) => {
+    const pr = rdCode(l);
+    if (pr) {
+      newSongs += mergeDefs(pr.defs || []);
+      S.pool[pr.name] = pr.votes;
+      S.poolTs[pr.name] = Date.now();
+      if (pr.name === S.me) S.myVotes = pr.votes;
+      added++;
+    } else bad++;
+  });
+  if (added) {
+    m.className = "okmsg";
+    m.textContent = "Added votes from " + added + " " + (added === 1 ? "person" : "people") + "." +
+      (newSongs ? " " + newSongs + " new song" + (newSongs === 1 ? "" : "s") + " came with them." : "") +
+      (bad ? " " + bad + " line(s) not recognised." : "");
+    $("pasteBox").value = ""; $("fileName").textContent = "";
+    await persist();
+    const w = await pushOthers();
+    m.textContent += w.saved ? " Saved " + w.saved + " bandmate record" + (w.saved === 1 ? "" : "s") + " to the server." : "";
+    if (w.failed) { m.className = "err"; m.textContent += " " + w.failed + " could not be saved — keep the codes as your backup."; }
+    draw();
+  } else {
+    m.className = "err";
+    m.textContent = "Couldn't read that. Codes start with BR2- or BR1-; a CSV needs Song and Artist columns.";
+  }
+}
+$("addCodes").onclick = async () => {
+  const t = $("pasteBox").value.trim();
+  if (!t) { $("mergeMsg").className = "err"; $("mergeMsg").textContent = "Paste some codes or a CSV first."; return; }
+  $("mergeMsg").className = "note"; $("mergeMsg").textContent = "Working…";
+  await ingest(t);
+};
+$("csvFile").onchange = (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  $("fileName").textContent = f.name;
+  const rd = new FileReader();
+  rd.onload = async () => { $("mergeMsg").className = "note"; $("mergeMsg").textContent = "Working…"; await ingest(String(rd.result)); };
+  rd.onerror = () => { $("mergeMsg").className = "err"; $("mergeMsg").textContent = "Couldn't read that file."; };
+  rd.readAsText(f);
+  e.target.value = "";
+};
+$("clearPool").onclick = () => {
+  Object.keys(S.pool).forEach((n) => { if (n !== S.me) delete S.pool[n]; });
+  withSaving(persist().then(draw));
+  draw();
+};
+
+/* ---------- diagnostics ---------- */
+$("runDiag").onclick = async () => {
+  const out = [];
+  out.push("app version: " + VERSION + "  (" + CHANGES[VERSION] + ")");
+  out.push("backend: " + location.origin + VOTES_API);
+  out.push("last result: " + (S.storageOK ? "OK" : "FAILED" + (S.lastErr ? " - " + S.lastErr : "")));
+  out.push("who am I: " + (S.me || "(not chosen)") + "   owner: " + (isOwner() ? "yes" : "no"));
+  out.push("in memory now: " + (Object.keys(S.pool).length ? Object.keys(S.pool).map((n) => n + "=" + Object.keys(S.pool[n] || {}).length).join("  ") : "nothing"));
+  out.push("plan: " + Object.keys(S.plan.states).length + " overrides, " + S.plan.order.length + " ordered, " +
+    Object.keys(S.plan.progress).length + " songs with a status");
+  try {
+    const hr = await fetch("/api/health", { cache: "no-store" });
+    const h = await hr.json();
+    out.push("health: " + (h.ok ? "OK" : "FAILED - " + (h.error || "")));
+    if (h.sheetTitle) out.push("  sheet: " + h.sheetTitle + "   tabs: " + (h.tabs || []).join(", "));
+    if (h.env) out.push("  env set: " + Object.keys(h.env).filter((k) => h.env[k]).join(", ") || "  env set: none");
+    if (h.hint) out.push("  hint: " + h.hint);
+  } catch (e) { out.push("health check failed: " + (e.message || e)); }
+  try {
+    const r = await fetch(VOTES_API, { cache: "no-store" });
+    const d = await r.json();
+    if (d.ok) {
+      const names = Object.keys(d.voters || {});
+      out.push("rows in sheet: " + (names.length ? names.map((n) => n + "=" + Object.keys(d.voters[n].votes || {}).length).join("  ") : "none"));
+      out.push("added songs in sheet: " + (d.custom || []).length);
+    } else out.push("read failed: " + d.error);
+  } catch (e) { out.push("read threw: " + (e.message || e)); }
+  out.push(""); out.push("--- activity ---");
+  $("diagOut").textContent = out.concat(S.diag.slice(-25)).join("\n");
+};
+$("copyDiag").onclick = () => put($("diagOut").textContent || "(run the check first)", $("copyDiag"), "Copied");
+
+/* ---------- boot ---------- */
+$("ver").textContent = VERSION;
+$("verNote").textContent = "Version " + VERSION + " — " + CHANGES[VERSION];
+log("setlist page started, version " + VERSION);
+
+(async function () {
+  let sn = "", ss = "";
+  try { sn = localStorage.getItem("br_name") || ""; ss = localStorage.getItem("br_secret") || ""; } catch (e) {}
+  $("nameIn").value = sn; $("secretIn").value = ss;
+  if (sn && ss) { await begin(); return; }   // already signed in on this browser
+  await pull();
+})();
+</script>

@@ -1,177 +1,8 @@
+<meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-<style>
-  :root{--stage:#14120F;--panel:#211E1A;--panel2:#2C2823;--cream:#EDE6D6;--dim:#8C8377;
-    --lamp:#F5A623;--hot:#E4572E;--ok:#7FA650;--line:rgba(237,230,214,.12);--line2:rgba(237,230,214,.06)}
-  *{box-sizing:border-box;margin:0;padding:0}
-  #sv{background:var(--stage);color:var(--cream);font-family:'Barlow',system-ui,sans-serif;min-height:100vh;padding:0 0 48px;-webkit-font-smoothing:antialiased}
-  #sv .wrap{max-width:720px;margin:0 auto;padding:0 18px}
-  #sv .disp{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.04em;line-height:.95}
-  #sv .mono{font-family:'IBM Plex Mono',monospace}
-  #sv button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
-  #sv button:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
-  #sv .hide{display:none!important}
-  #sv .note{font-size:13px;color:var(--dim);line-height:1.55}
-
-  #sv header{border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--panel2),var(--panel));padding:18px 0 16px;margin-bottom:16px;position:relative}
-  #sv header:after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,var(--lamp),transparent);opacity:.5}
-  #sv .plate{display:flex;align-items:center;gap:13px}
-  #sv .lamp{width:14px;height:14px;border-radius:50%;flex:none;background:radial-gradient(circle at 35% 30%,#FFD98A,var(--lamp) 55%,#8A5A0B);box-shadow:0 0 13px rgba(245,166,35,.7)}
-  #sv h1{font-size:27px;font-weight:700;flex:1}
-  #sv h1 small{display:block;font-size:10px;letter-spacing:.3em;color:var(--dim);font-weight:600;margin-top:5px}
-
-  #sv .status{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;font-family:'Barlow Condensed',sans-serif;
-    padding:5px 9px;border:1px solid var(--line);border-radius:2px;color:var(--dim);white-space:nowrap}
-  #sv .status.ok{color:var(--ok);border-color:rgba(127,166,80,.4)}
-  #sv .status.warn{color:var(--lamp);border-color:rgba(245,166,35,.4)}
-
-  #sv .banner{border:1px solid rgba(245,166,35,.35);background:rgba(245,166,35,.07);border-radius:2px;padding:12px 14px;margin-bottom:18px;font-size:13px;line-height:1.55;color:var(--cream)}
-  #sv .banner b{color:var(--lamp)}
-
-  #sv .gate h2{font-size:23px;font-weight:600;margin-bottom:8px}
-  #sv .eyebrow{font-size:10px;letter-spacing:.28em;color:var(--dim);font-weight:600;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif}
-  #sv .names{display:flex;flex-wrap:wrap;gap:9px;margin:18px 0}
-  #sv .names button{padding:11px 18px;border:1px solid var(--line);border-radius:2px;background:var(--panel);font-size:15px;font-weight:500}
-  #sv .names button:hover{border-color:var(--lamp);color:var(--lamp)}
-  #sv input,#sv textarea{width:100%;padding:12px 13px;background:var(--panel);color:var(--cream);border:1px solid var(--line);border-radius:2px;font-size:15px;font-family:inherit;resize:vertical}
-  #sv .go{margin-top:11px;width:100%;padding:14px;background:var(--lamp);color:#14120F;font-weight:700;font-size:14px;letter-spacing:.14em;text-transform:uppercase;border-radius:2px;font-family:'Barlow Condensed',sans-serif}
-
-  #sv .track{border:1px solid var(--line);border-radius:3px;background:var(--panel);padding:22px 20px;margin:12px 0 14px;position:relative;overflow:hidden}
-  #sv .track:before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--lamp)}
-  #sv .track.unscored:before{background:var(--panel2)}
-  #sv .tnum{font-size:11px;color:var(--dim);letter-spacing:.13em;margin-bottom:10px;display:flex;justify-content:space-between;gap:10px}
-  #sv .tnum b{color:var(--lamp);font-weight:500}
-  #sv .tname{font-size:26px;font-weight:700;margin-bottom:6px}
-  #sv .tart{font-size:16px;color:var(--lamp);font-weight:500;margin-bottom:14px}
-  #sv .tmeta{display:flex;gap:14px;font-size:12px;color:var(--dim);border-top:1px solid var(--line2);padding-top:11px;flex-wrap:wrap}
-
-  #sv .votes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  #sv .votes button{padding:14px 10px;border:1px solid var(--line);border-radius:2px;background:var(--panel);text-align:left}
-  #sv .votes button:hover{background:var(--panel2);border-color:var(--dim)}
-  #sv .votes button.on{border-color:var(--lamp);background:var(--panel2);box-shadow:inset 3px 0 0 var(--lamp)}
-  #sv .votes b{display:block;font-size:15px;font-weight:600;margin-bottom:2px}
-  #sv .votes span{font-size:11px;color:var(--dim)}
-  #sv .votes button[data-v="3"] b{color:var(--hot)}
-  #sv .votes button[data-v="3"].on{border-color:var(--hot);box-shadow:inset 3px 0 0 var(--hot)}
-
-  #sv .bar{height:3px;background:var(--panel2);border-radius:2px;overflow:hidden;margin-bottom:7px}
-  #sv .bar i{display:block;height:100%;background:var(--lamp);transition:width .25s}
-  #sv .prog{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:14px}
-  #sv .steps{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
-  #sv .steps button{padding:13px;border:1px solid var(--line);border-radius:2px;background:var(--panel);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;font-family:'Barlow Condensed',sans-serif;color:var(--dim)}
-  #sv .steps button:hover:not(:disabled){color:var(--lamp);border-color:var(--lamp)}
-  #sv .steps button:disabled{opacity:.28;cursor:default}
-  #sv .util{display:flex;justify-content:space-between;margin-top:13px;gap:10px}
-  #sv .util button{font-size:12px;color:var(--dim);letter-spacing:.13em;text-transform:uppercase;font-weight:600;font-family:'Barlow Condensed',sans-serif;padding:8px 0}
-  #sv .util button:hover:not(:disabled){color:var(--lamp)}
-  #sv .util button:disabled{opacity:.28;cursor:default}
-
-  #sv .set{margin-bottom:30px}
-  #sv .sethead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
-  #sv .sethead h3{font-size:20px;font-weight:700;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.04em}
-  #sv .clock{font-size:18px;font-weight:600}
-  #sv .meter{height:24px;background:var(--panel);border:1px solid var(--line);border-radius:2px;position:relative;overflow:hidden;margin-bottom:4px}
-  #sv .meter i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#8A5A0B,var(--lamp));transition:width .3s}
-  #sv .ticks{position:absolute;inset:0;display:flex;pointer-events:none}
-  #sv .ticks span{flex:1;border-right:1px solid rgba(20,18,15,.45)}
-  #sv .ticks span:last-child{border:none}
-  #sv .meterfoot{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);letter-spacing:.1em;margin-bottom:11px}
-
-  #sv .row{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--line2);width:100%;text-align:left}
-  #sv .row:hover{background:rgba(237,230,214,.03)}
-  #sv .row.cut{opacity:.36}
-  #sv .row.open{background:var(--panel);opacity:1}
-  #sv .rk{font-size:11px;color:var(--dim);width:20px;flex:none;padding-left:3px}
-  #sv .rt{flex:1;min-width:0}
-  #sv .rt b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #sv .rt span{font-size:11px;color:var(--dim)}
-  #sv .rd{font-size:11px;color:var(--dim);flex:none}
-  #sv .grid{display:flex;gap:3px;flex:none}
-  #sv .cell{width:23px;padding:3px 0;text-align:center;font-size:10px;border-radius:2px;font-family:'IBM Plex Mono',monospace;border:1px solid var(--line2);color:var(--dim);background:var(--panel2)}
-  #sv .cell.v3{background:rgba(228,87,46,.85);color:#14120F;border-color:transparent;font-weight:600}
-  #sv .cell.v2{background:rgba(245,166,35,.8);color:#14120F;border-color:transparent;font-weight:600}
-  #sv .cell.v1{background:rgba(245,166,35,.22);color:var(--lamp);border-color:transparent}
-  #sv .cell.v0{background:transparent;color:var(--dim);border-color:var(--line)}
-  #sv .cell.none{background:transparent;color:rgba(140,131,119,.4);border-style:dashed}
-  #sv .cell.mine{outline:1px solid var(--cream);outline-offset:1px}
-  #sv .rs{font-size:13px;font-weight:600;width:36px;text-align:right;flex:none;color:var(--lamp);padding-right:3px}
-  #sv .legend{display:flex;gap:4px;justify-content:flex-end;margin-bottom:6px;font-size:9px;color:var(--dim);letter-spacing:.1em}
-  #sv .legend i{width:23px;text-align:center;font-style:normal;font-family:'IBM Plex Mono',monospace}
-
-  #sv .editor{background:var(--panel);border-bottom:1px solid var(--line2);padding:2px 8px 13px}
-  #sv .editor .lbl{font-size:10px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;font-weight:600;font-family:'Barlow Condensed',sans-serif;padding:8px 0 8px}
-  #sv .editor .opts{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
-  #sv .editor .opts button{padding:10px 3px;border:1px solid var(--line);border-radius:2px;font-size:11px;font-weight:600;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.05em;color:var(--dim)}
-  #sv .editor .opts button:hover{color:var(--cream);border-color:var(--dim)}
-  #sv .editor .opts button.on{border-color:var(--lamp);color:var(--lamp);background:var(--panel2)}
-  #sv .editor .opts button[data-v="3"].on{border-color:var(--hot);color:var(--hot)}
-  #sv .divider{display:flex;align-items:center;gap:9px;margin:11px 0;color:var(--hot);font-size:10px;letter-spacing:.2em;font-weight:600;font-family:'Barlow Condensed',sans-serif}
-  #sv .divider:before,#sv .divider:after{content:'';flex:1;height:1px;background:var(--hot);opacity:.4}
-
-  #sv .tabs{display:flex;gap:2px;margin-bottom:16px;border-bottom:1px solid var(--line)}
-  #sv .tabs button{padding:11px 14px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--dim);font-family:'Barlow Condensed',sans-serif;border-bottom:2px solid transparent;margin-bottom:-1px}
-  #sv .tabs button.on{color:var(--lamp);border-bottom-color:var(--lamp)}
-  #sv .voters{font-size:12px;color:var(--dim);margin-bottom:14px;line-height:1.6}
-  #sv .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-  #sv .btn{padding:12px;border:1px solid var(--lamp);color:var(--lamp);border-radius:2px;font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif}
-  #sv .btn:hover{background:var(--lamp);color:#14120F}
-  #sv .btn.ghost{border-color:var(--line);color:var(--dim)}
-  #sv .btn.ghost:hover{background:var(--panel2);color:var(--cream)}
-  #sv .merge{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}
-  #sv .merge h4{font-size:15px;font-weight:600;margin-bottom:5px}
-  #sv .merge textarea{margin:9px 0;font-size:12px;font-family:'IBM Plex Mono',monospace}
-  #sv .addgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:11px 0}
-  #sv .addgrid input,#sv .addgrid select{padding:11px 12px;font-size:14px}
-  #sv select{background:var(--panel);color:var(--cream);border:1px solid var(--line);border-radius:2px;font-family:inherit;width:100%}
-  #sv #customList{margin-top:13px}
-  #sv .crow{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--line2);font-size:13px}
-  #sv .crow b{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #sv .crow span{color:var(--dim);font-size:11px;flex:none}
-  #sv .crow button{color:var(--hot);font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;font-family:'Barlow Condensed',sans-serif;flex:none}
-  #sv .tag{font-size:9px;letter-spacing:.1em;padding:2px 5px;border:1px solid var(--lamp);color:var(--lamp);border-radius:2px;margin-left:7px;vertical-align:middle;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
-  #sv .tag.cap{border-color:var(--hot);color:var(--hot)}
-  #sv .tag.neg{border-color:var(--dim);color:var(--dim)}
-  #sv .tag.tune{border-color:var(--dim);color:var(--dim);text-transform:none;letter-spacing:.03em}
-  #sv .orderbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px;padding:10px 12px;border:1px solid var(--line);border-radius:2px;background:var(--panel);font-size:12px;color:var(--dim)}
-  #sv .orderbar b{color:var(--lamp);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-size:11px}
-  #sv .orderbar.unsaved b{color:var(--hot)}
-  #sv .orderbar.saved b{color:var(--ok)}
-  #sv .orderbar button{padding:6px 10px;border:1px solid var(--line);border-radius:2px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;font-weight:600;color:var(--dim)}
-  #sv .orderbar button:hover{color:var(--lamp);border-color:var(--lamp)}
-  #sv .runhead,.rankhead{font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;font-family:'Barlow Condensed',sans-serif;color:var(--dim);margin:14px 0 6px}
-  #sv button.rankhead{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:12px 0 0;cursor:pointer}
-  #sv button.rankhead:hover,#sv button.rankhead:focus-visible{color:var(--lamp)}
-  #sv button.rankhead .chev{font-size:8px;transition:transform .15s ease}
-  #sv button.rankhead.on .chev{transform:rotate(90deg)}
-  #sv button.rankhead .cnt{margin-left:auto;font-family:'IBM Plex Mono',monospace;letter-spacing:.05em;font-size:10px}
-  #sv .handle{width:18px;flex:none;color:var(--dim);cursor:grab;font-size:14px;letter-spacing:-2px;text-align:center;user-select:none}
-  #sv .row.dragging{opacity:.45}
-  #sv .arrows{display:flex;flex-direction:column;gap:2px;flex:none}
-  #sv .arrows button{width:22px;height:16px;border:1px solid var(--line);border-radius:2px;color:var(--dim);font-size:9px;line-height:1}
-  #sv .arrows button:hover:not(:disabled){color:var(--lamp);border-color:var(--lamp)}
-  #sv .arrows button:disabled{opacity:.25;cursor:default}
-  #sv .links{display:flex;gap:8px;margin-top:3px;flex-wrap:wrap}
-  #sv .links a{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);text-decoration:none;font-family:'Barlow Condensed',sans-serif}
-  #sv .links a:hover{color:var(--lamp)}
-  #sv .fail{border-color:rgba(228,87,46,.45);background:rgba(228,87,46,.08);color:var(--cream);margin-bottom:12px}
-  #sv .tagsel{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;font-size:12px;color:var(--dim)}
-  #sv .tagsel label{display:flex;align-items:center;gap:5px;border:1px solid var(--line);padding:7px 10px;border-radius:2px;cursor:pointer}
-  #sv .tagsel input{width:auto;accent-color:var(--lamp)}
-  #sv .addgrid.meta{grid-template-columns:1fr 1fr}
-  #sv .filerow{display:flex;align-items:center;gap:11px;margin:9px 0}
-  #sv .filerow label{cursor:pointer;flex:none;margin:0}
-  #sv .filerow input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
-  #sv .filerow input[type=file]:focus-visible+span{outline:2px solid var(--lamp)}
-  #sv .diag{margin-top:11px;background:#0C0B09;border:1px solid var(--line);border-radius:2px;padding:11px;
-    font-family:'IBM Plex Mono',monospace;font-size:10.5px;line-height:1.6;color:var(--dim);
-    white-space:pre-wrap;word-break:break-word;max-height:280px;overflow:auto}
-  #sv h1 small span{color:var(--lamp)}
-  #sv .err{color:var(--hot);font-size:13px;padding:8px 0}
-  #sv .okmsg{color:var(--ok);font-size:13px;padding:8px 0}
-  @media (prefers-reduced-motion:reduce){#sv *{transition:none!important}}
-</style>
+<link href="./app.css" rel="stylesheet">
 
 <div id="sv">
   <header><div class="wrap plate">
@@ -186,7 +17,7 @@
     <div id="gate" class="gate">
       <div class="eyebrow">Step one</div>
       <h2 class="disp">Who's voting?</h2>
-      <p class="note">63 songs. Two sets, 45 and 60 minutes. Score what you have an opinion on, skip the rest, change your mind whenever. Pass is a veto: it outweighs two Yes votes. Existing Pass votes now count that way.</p>
+      <p class="note" id="gateNote"></p>
       <div class="names" id="names"></div>
       <input id="nameIn" placeholder="Or type your name" maxlength="18" autocomplete="off">
       <input id="secretIn" placeholder="Access code" type="password" autocomplete="off" style="margin-top:8px">
@@ -203,7 +34,7 @@
         <div class="tnum mono"><span id="tnum"></span><b id="tvote"></b></div>
         <div class="tname disp" id="tname"></div>
         <div class="tart" id="tart"></div>
-        <div class="tmeta mono"><span id="tdur"></span><span id="tyear"></span><span id="tbpm"></span><span id="tset"></span><span id="ttune"></span></div>
+        <div class="tmeta mono"><span id="tdur"></span><span id="tyear"></span><span id="tbpm"></span><span id="tera"></span><span id="ttune"></span></div>
       </div>
       <div class="votes" id="votes">
         <button data-v="3"><b>Must play</b><span>Fight me on it</span></button>
@@ -218,875 +49,151 @@
       <div class="util">
         <button id="jump">Next unscored</button>
         <button id="clearv">Clear this vote</button>
-        <button id="toResults">Standings &rarr;</button>
-      </div>
-    </div>
-
-    <div id="results" class="hide">
-      <div class="tabs">
-        <button id="tabVote">Keep voting</button>
-        <button id="tabRes" class="on">Standings</button>
-      </div>
-      <div class="voters mono" id="voters"></div>
-      <div id="sets"></div>
-      <div class="actions">
-        <button class="btn" id="copySet">Copy setlist</button>
-        <button class="btn" id="copyRaw">Copy all votes (CSV)</button>
-      </div>
-      <div class="merge">
-        <h4 class="disp">Storage check</h4>
-        <p class="note">If votes go missing, run this and send Rich the output.</p>
-        <div class="actions" style="margin-top:11px">
-          <button class="btn ghost" id="runDiag">Run check</button>
-          <button class="btn ghost" id="copyDiag">Copy report</button>
-        </div>
-        <pre id="diagOut" class="diag"></pre>
-      </div>
-
-      <div class="merge" id="addPanel">
-        <h4 class="disp" id="addHead">Add a song</h4>
-        <p class="note" id="addNote">Anything you add goes to the end of the list, so nobody's existing votes shift. Added songs travel inside the codes, so they reach the rest of the band too.</p>
-        <div id="addForm">
-          <div class="addgrid">
-            <input id="aTitle" placeholder="Song title" maxlength="60">
-            <input id="aArtist" placeholder="Artist" maxlength="40">
-            <input id="aDur" placeholder="Length (3:45)" maxlength="6">
-            <select id="aSet"><option value="1">Set 1 &mdash; 70s / 80s</option><option value="2">Set 2 &mdash; 90s and after</option></select>
-            <select id="aEnergy">
-              <option value="">Energy (leave blank)</option>
-              <option value="1">1 &mdash; lowest</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5 &mdash; highest</option>
-            </select>
-            <select id="aLead">
-              <option value="">Lead vocal (optional)</option>
-              <option>Rich</option><option>Joel</option><option>Anders</option><option>Pete</option>
-            </select>
-          </div>
-          <div class="tagsel" id="aTags">
-            <label><input type="checkbox" value="opener"> Opener</label>
-            <label><input type="checkbox" value="closer"> Closer</label>
-            <label><input type="checkbox" value="ballad"> Ballad</label>
-            <label><input type="checkbox" value="dedication"> Dedication</label>
-            <label><input type="checkbox" value="slow"> Slow</label>
-          </div>
-          <button class="btn" id="addTrack">Add to the list</button>
-          <div id="addMsg"></div>
-        </div>
-        <div id="customList"></div>
-      </div>
-
-      <div class="merge">
-        <h4 class="disp">Pool the band's votes</h4>
-        <p class="note">Everyone taps <b>Copy my code</b> and texts you the result. Paste the codes below &mdash; one per line &mdash; or drop in a CSV you exported earlier. The box takes either.</p>
-        <div class="actions" style="margin-top:11px">
-          <button class="btn ghost" id="copyMine">Copy my code</button>
-          <button class="btn ghost" id="copyAll">Copy all codes</button>
-          <button class="btn ghost" id="clearPool">Clear pooled</button>
-        </div>
-        <textarea id="pasteBox" rows="3" placeholder="Paste codes (one per line) or a whole CSV"></textarea>
-        <div class="filerow">
-          <label class="btn ghost" for="csvFile">Choose a CSV file</label>
-          <input type="file" id="csvFile" accept=".csv,text/csv">
-          <span id="fileName" class="note"></span>
-        </div>
-        <button class="btn" id="addCodes">Add these votes</button>
-        <div id="mergeMsg"></div>
+        <a class="btn ghost" href="./results.html" style="text-decoration:none;padding:8px 12px">Setlist &amp; standings &rarr;</a>
       </div>
     </div>
   </div>
 </div>
 
 <script type="module">
-import {
-  TARGET, MAX_PER_ARTIST, voteWeight, scoreSongs, generateSets,
-  searchLinks, parseLen, mmss as fmtTime, moveKey, tuningFor
-} from "./setlist.js";
+import { VERSION, CHANGES, LABEL } from "./catalog.js";
+import { TARGET_SONGS, MAX_PER_ARTIST, eraLabel, tuningFor, mmss } from "./setlist.js";
+import { S, BAND, onStatus, pull, persist, relist } from "./store.js";
 
-const TRACKS=[
-["I Wanna Be Your Dog","The Stooges",189,1969,121,1,4,"opener",""],
-["Green River","Creedence Clearwater Revival",154,1969,142,1,4,"",""],
-["Born On The Bayou","Creedence Clearwater Revival",315,1969,117,1,3,"",""],
-["Fortunate Son","Creedence Clearwater Revival",141,1969,133,1,4,"",""],
-["Mississippi Queen","Mountain",151,1970,140,1,4,"",""],
-["Run Through The Jungle","Creedence Clearwater Revival",185,1970,137,1,4,"",""],
-["War Pigs","Black Sabbath",474,1970,91,1,2,"slow",""],
-["Bang a Gong (Get It On)","T. Rex",262,1971,127,1,4,"",""],
-["Baba O'Riley","The Who",300,1971,117,1,5,"opener",""],
-["Back In the Saddle","Aerosmith",280,1976,122,1,4,"",""],
-["Rock And Roll All Nite","KISS",168,1975,144,1,5,"closer",""],
-["Beat on the Brat","Ramones",152,1976,157,1,4,"",""],
-["Blitzkrieg Bop","Ramones",133,1976,177,1,5,"opener",""],
-["Liar","Sex Pistols",162,1977,150,1,4,"",""],
-["Pretty Vacant","Sex Pistols",198,1977,145,1,4,"",""],
-["Holidays in the Sun","Sex Pistols",203,1977,148,1,4,"",""],
-["Let There Be Rock","AC/DC",367,1977,182,1,5,"closer",""],
-["Riff Raff","AC/DC",313,1978,185,1,5,"opener",""],
-["Fat Bottomed Girls","Queen",256,1978,88,1,3,"",""],
-["Rock 'n' Roll","Motorhead",228,1987,124,1,4,"",""],
-["Delivering the Goods","Judas Priest",258,1979,158,1,4,"",""],
-["Stay Clean","Motorhead",160,1979,145,1,4,"",""],
-["See Me Burning","Motorhead",180,1979,161,1,4,"",""],
-["Jamie's Cryin'","Van Halen",210,1978,128,1,3,"",""],
-["Dance the Night Away","Van Halen",188,1979,129,1,3,"",""],
-["China Girl","David Bowie",257,1983,134,1,3,"",""],
-["Sharp Dressed Man","ZZ Top",258,1983,125,1,4,"",""],
-["For Whom The Bell Tolls","Metallica",310,1984,117,1,4,"",""],
-["Kiss","Prince",226,1986,111,1,3,"",""],
-["School","Nirvana",162,1989,164,2,5,"opener",""],
-["We Die Young","Alice In Chains",152,1990,125,2,4,"",""],
-["Rusty Cage","Soundgarden",266,1991,101,2,4,"",""],
-["Slaves & Bulldozers","Soundgarden",416,1991,130,2,3,"",""],
-["Territorial Pissings","Nirvana",143,1991,182,2,5,"",""],
-["Sad But True","Metallica",325,1991,89,2,3,"",""],
-["Dam That River","Alice In Chains",189,1992,124,2,4,"",""],
-["Them Bones","Alice In Chains",149,1992,165,2,5,"",""],
-["Would?","Alice In Chains",207,1992,100,2,2,"slow",""],
-["Wicked Garden","Stone Temple Pilots",245,1992,153,2,4,"",""],
-["Piece of Pie","Stone Temple Pilots",324,1992,146,2,4,"",""],
-["Creep","Stone Temple Pilots",334,1992,107,2,2,"ballad,slow",""],
-["Frances Farmer Will Have Her Revenge On Seattle","Nirvana",250,1993,117,2,3,"",""],
-["Dissident","Pearl Jam",215,1993,146,2,4,"",""],
-["Sabotage","Beastie Boys",178,1994,168,2,5,"opener",""],
-["Machinehead","Bush",256,1994,171,2,5,"",""],
-["Superunknown","Soundgarden",307,1994,133,2,3,"",""],
-["Let Me Drown","Soundgarden",233,1994,187,2,4,"",""],
-["Spin the Black Circle","Pearl Jam",168,1994,217,2,5,"",""],
-["Hey Man, Nice Shot","Filter",314,1995,177,2,4,"",""],
-["Where Boys Fear To Tread","The Smashing Pumpkins",264,1995,113,2,3,"",""],
-["Bound For The Floor","Local H",223,1996,119,2,4,"",""],
-["Trippin' on a Hole in a Paper Heart","Stone Temple Pilots",176,1996,106,2,4,"",""],
-["Freak","Silverchair",226,1997,118,2,3,"",""],
-["Testify","Rage Against The Machine",210,1999,117,2,5,"",""],
-["Sleep Now In the Fire","Rage Against The Machine",206,1999,127,2,5,"closer",""],
-["The Everlasting Gaze","The Smashing Pumpkins",241,2000,146,2,4,"",""],
-["Bleed American","Jimmy Eat World",181,2001,160,2,4,"",""],
-["Gasoline","Audioslave",279,2002,92,2,3,"",""],
-["Cochise","Audioslave",222,2002,80,2,5,"opener",""],
-["Medication","Queens of the Stone Age",114,2002,165,2,4,"",""],
-["Slither","Velvet Revolver",248,2004,141,2,4,"",""],
-["Little Sister","Queens of the Stone Age",174,2005,161,2,4,"",""],
-["Make It Wit Chu","Queens of the Stone Age",290,2007,91,2,2,"slow",""]
-];
-const BAND=["Rich","Joel","Anders","Pete"];
-const VERSION="v16";
-const CHANGES={
- "v16":"Guitar tunings on every song — edit them in the sheet's Tunings tab",
- "v15":"Riff Raff tagged as opener \u2014 generator now locks it at set 1, track 1",
- "v14":"Ranking \u2014 full pool now collapses so both setlists fit on screen",
- "v13":"At most 1 song from any one artist across both sets \u2014 set 1 gets first claim",
- "v12":"Pass is a veto (\u22124). Weighted scores, generated running order, max 2 per artist still applies",
- "v11":"Each setlist takes at most 2 songs from any one artist, votes or not",
- "v10":"Hosted on Vercel with a Google Sheet backend \u2014 votes sync for everyone",
- "v9":"Pool stored inside your own record; timestamps settle conflicts; storage check panel",
- "v8":"Imports save every voter, not just yours",
- "v7":"Only Rich can add songs",
- "v6":"CSV import",
- "v5":"Add songs to the list",
- "v4":"Read before write; verified saves",
- "v3":"Per-member votes in Standings; codes",
- "v2":"Skip and go back; edit votes from Standings",
- "v1":"First version"
-};
-const OWNER="Rich";                     // only this person can add songs
-const isOwner=()=>!!me_&&slug(me_)===slug(OWNER);
-const LABEL={3:"Must play",2:"Yes",1:"Maybe",0:"Pass"};
-const NB=TRACKS.length;                 // built-in count (positions never change)
+const $ = (id) => document.getElementById(id);
+let idx = 0;
+const tuneOf = (r) => tuningFor(S.tunings, r.name, r.artist);
 
-let me_=null, myVotes={}, pool={}, custom=[], idx=0, openRow=null, storageOK=null;
-let draftOrder={1:null,2:null}, savedOrder={1:null,2:null}, dragSet=null, dragFrom=-1;
-let rankOpen={1:false,2:false};
-const $=id=>document.getElementById(id);
-const mmss=fmtTime;
-const slug=n=>n.toLowerCase().replace(/[^a-z0-9]/g,"")||"x";
-const keyOf=(t,a)=>slug(t)+"-"+slug(a);
-const ORDER_KEY=s=>"br_order_"+s;
-function loadSavedOrders(){
-  try{
-    [1,2].forEach(s=>{
-      const raw=localStorage.getItem(ORDER_KEY(s));
-      savedOrder[s]=raw?JSON.parse(raw):null;
-    });
-  }catch(e){}
-  loadRankOpen();
-}
-const RANK_KEY="br_rankopen";
-function loadRankOpen(){
-  try{
-    const raw=localStorage.getItem(RANK_KEY);
-    if(raw){const v=JSON.parse(raw);rankOpen={1:!!v[1],2:!!v[2]};}
-  }catch(e){}
-}
-function persistRankOpen(){
-  try{localStorage.setItem(RANK_KEY,JSON.stringify(rankOpen));}catch(e){}
-}
-function persistSaved(s){
-  try{
-    if(savedOrder[s]&&savedOrder[s].length)localStorage.setItem(ORDER_KEY(s),JSON.stringify(savedOrder[s]));
-    else localStorage.removeItem(ORDER_KEY(s));
-  }catch(e){}
-}
-function songMeta(t){
-  return {energy:t[6]||0,tags:t[7]||"",lead:t[8]||""};
-}
-
-/* full list = built-ins (key b0..bN) then added songs (key from name+artist) */
-function songs(){
-  const out=TRACKS.map((t,i)=>({k:"b"+i,name:t[0],artist:t[1],dur:t[2],year:t[3],bpm:t[4],set:t[5],...songMeta(t)}));
-  custom.slice().sort((a,b)=>a.k<b.k?-1:1).forEach(c=>out.push({...c,added:true}));
-  return out;
-}
-let LIST=songs();
-const relist=()=>{LIST=songs();};
-
-/* ---------- codes: BR2-Name~<builtin string>|<added defs>|<added votes> ---------- */
-function esc(x){return String(x).replace(/[~|;^!]/g,"");}
-function mkCode(name,v){
-  let bs="";for(let i=0;i<NB;i++)bs+=(v["b"+i]===undefined?".":v["b"+i]);
-  const defs=custom.map(c=>[c.k,esc(c.name),esc(c.artist),c.dur,c.set,c.energy||"",esc(c.tags||""),esc(c.lead||"")].join("^")).join(";");
-  const cv=custom.filter(c=>v[c.k]!==undefined).map(c=>c.k+":"+v[c.k]).join(",");
-  return "BR2-"+esc(name)+"~"+bs+"|"+defs+"|"+cv;
-}
-function rdCode(raw){
-  const c=String(raw).trim();
-  let m=c.match(/^BR2-([^~]+)~([0-3.]*)\|([^|]*)\|([^|]*)$/);
-  if(m){
-    const v={};
-    for(let i=0;i<NB&&i<m[2].length;i++){const ch=m[2][i];if(ch>="0"&&ch<="3")v["b"+i]=+ch;}
-    const defs=m[3]?m[3].split(";").filter(Boolean).map(d=>{
-      const f=d.split("^");
-      if(f.length<5)return null;
-      return {k:f[0],name:f[1],artist:f[2],dur:+f[3],set:+f[4],energy:+f[5]||0,tags:f[6]||"",lead:f[7]||""};
-    }).filter(Boolean):[];
-    (m[4]?m[4].split(","):[]).forEach(pair=>{
-      const f=pair.split(":");if(f.length===2&&f[1]!=="")v[f[0]]=+f[1];
-    });
-    return {name:m[1],votes:v,defs};
-  }
-  m=c.match(/^BR1-([^~]+)~([0-3.]{1,200})$/);   // older codes still work
-  if(m){
-    const v={};
-    for(let i=0;i<NB&&i<m[2].length;i++){const ch=m[2][i];if(ch>="0"&&ch<="3")v["b"+i]=+ch;}
-    return {name:m[1],votes:v,defs:[]};
-  }
-  return null;
-}
-function mergeDefs(defs){
-  let added=0;
-  defs.forEach(d=>{
-    if(!custom.some(c=>c.k===d.k)){custom.push({k:d.k,name:d.name,artist:d.artist,dur:d.dur,set:d.set,energy:d.energy||"",tags:d.tags||"",lead:d.lead||""});added++;}
-  });
-  if(added)relist();
-  return added;
-}
-
-/* ---------- URL hash: helps within a session, not across refresh in an iframe ---------- */
-function writeHash(){
-  const parts=[];
-  if(me_)parts.push(mkCode(me_,myVotes));
-  Object.keys(pool).forEach(n=>{if(n!==me_)parts.push(mkCode(n,pool[n]));});
-  const h="#"+encodeURIComponent(parts.join("!"));
-  try{history.replaceState(null,"",location.pathname+location.search+h);}catch(e){}
-}
-function readHash(){
-  let h=location.hash.replace(/^#/,"");if(!h)return false;
-  try{h=decodeURIComponent(h);}catch(e){}
-  const parts=h.split("!").map(rdCode).filter(Boolean);
-  if(!parts.length)return false;
-  parts.forEach(p=>mergeDefs(p.defs||[]));
-  me_=parts[0].name;myVotes=parts[0].votes;
-  pool={};parts.forEach(p=>pool[p.name]=p.votes);
-  return true;
-}
-
-/* ---------- backend: Vercel function -> Google Sheet ---------- */
-let poolTs={}, diag=[], secret="", lastErr="", tunings={};
-const tuneOf=r=>tuningFor(tunings,r.name,r.artist);
-function log(x){diag.push(new Date().toLocaleTimeString()+"  "+x);if(diag.length>60)diag.shift();}
-const API="/api/votes";
-
-function absorb(data){
-  const v=data.voters||{};
-  if(data.tunings)tunings=data.tunings;
-  mergeDefs(data.custom||[]);
-  Object.keys(v).forEach(n=>{
-    const rec=v[n]||{},votes=rec.votes||{},ts=rec.ts||0;
-    if(!Object.keys(votes).length)return;
-    if(n===me_){
-      if(ts>=(poolTs[n]||0)){myVotes=votes;poolTs[n]=ts;}
-      else Object.keys(votes).forEach(k=>{if(myVotes[k]===undefined)myVotes[k]=votes[k];});
-    }else if(ts>=(poolTs[n]||0)){pool[n]=votes;poolTs[n]=ts;}
-  });
-  if(me_)pool[me_]=myVotes;
-  log("loaded -> "+Object.keys(pool).map(n=>n+":"+Object.keys(pool[n]||{}).length).join(", "));
-}
-async function pull(){
-  try{
-    const r=await fetch(API,{cache:"no-store"});
-    const d=await r.json();
-    if(!r.ok||!d.ok)throw new Error(d.error||("HTTP "+r.status));
-    absorb(d);storageOK=true;lastErr="";setStatus();return true;
-  }catch(e){storageOK=false;lastErr=e.message||String(e);log("load failed: "+lastErr);setStatus();return false;}
-}
-async function push(){
-  if(!me_)return false;
-  try{
-    const r=await fetch(API,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        secret:secret,name:me_,votes:myVotes,ts:poolTs[me_]||Date.now(),
-        version:VERSION,
-        custom:isOwner()?custom:undefined,
-        songs:isOwner()?LIST.map(x=>({k:x.k,name:x.name,artist:x.artist,year:x.year||"",dur:x.dur,set:x.set})):undefined
-      })
-    });
-    const d=await r.json();
-    if(!r.ok||!d.ok)throw new Error(d.error||("HTTP "+r.status));
-    absorb(d);storageOK=true;lastErr="";
-    log("saved "+Object.keys(myVotes).length+" votes to the sheet");
-    setStatus();
-    return true;
-  }catch(e){storageOK=false;lastErr=e.message||String(e);log("save failed: "+lastErr);setStatus();return false;}
-}
-async function pushOthers(){
-  let saved=0,failed=0;
-  for(const name of Object.keys(pool)){
-    if(name===me_)continue;
-    const v=pool[name];if(!v||!Object.keys(v).length)continue;
-    try{
-      const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({secret:secret,name:name,votes:v,ts:poolTs[name]||Date.now(),version:VERSION})});
-      const d=await r.json();
-      if(r.ok&&d.ok){saved++;log("saved "+name+"'s votes to the sheet");absorb(d);}
-      else{failed++;log("could not save "+name+": "+(d.error||r.status));}
-    }catch(e){failed++;log("could not save "+name+": "+(e.message||e));}
-  }
-  return {saved:saved,failed:failed};
-}
-function setStatus(){
-  const el=$("status");
-  if(storageOK===null){el.textContent="Checking";el.className="status";return;}
-  if(storageOK){el.textContent="Saved";el.className="status ok";$("banner").classList.add("hide");}
-  else if(/wrong access code/i.test(lastErr||"")){
-    el.textContent="Wrong code";el.className="status warn";
-    $("banner").innerHTML="<b>Wrong access code.</b> Type the exact <b>APP_SECRET</b> from Vercel, then tap Start.";
+/* ---------- connection banner ---------- */
+function setStatus() {
+  const el = $("status");
+  if (S.storageOK === null) { el.textContent = "Checking"; el.className = "status"; return; }
+  if (S.storageOK) {
+    el.textContent = "Saved"; el.className = "status ok"; $("banner").classList.add("hide");
+  } else if (/wrong access code/i.test(S.lastErr || "")) {
+    el.textContent = "Wrong code"; el.className = "status warn";
+    $("banner").innerHTML = "<b>Wrong access code.</b> Type the exact <b>APP_SECRET</b> from Vercel, then tap Start.";
     $("banner").classList.remove("hide");
-  }else{
-    el.textContent="Not saving";el.className="status warn";
-    $("banner").innerHTML="<b>Not reaching the server"+(lastErr?" \u2014 "+lastErr:"")+".</b> Your votes are safe in this tab but won't sync. Check your connection, or go to Standings and tap <b>Copy my code</b> so nothing is lost.";
+  } else {
+    el.textContent = "Not saving"; el.className = "status warn";
+    $("banner").innerHTML = "<b>Not reaching the server" + (S.lastErr ? " — " + S.lastErr : "") +
+      ".</b> Your votes are safe in this tab but won't sync. Check your connection, or open the setlist page and tap <b>Copy my code</b> so nothing is lost.";
     $("banner").classList.remove("hide");
   }
 }
-function toast(msg){const b=$("banner");b.innerHTML=msg;b.classList.remove("hide");setTimeout(setStatus,7000);}
-function persist(){poolTs[me_]=Date.now();push();}
+onStatus(setStatus);
+function toast(msg) {
+  const b = $("banner"); b.innerHTML = msg; b.classList.remove("hide"); setTimeout(setStatus, 7000);
+}
 
-/* ---------- start ---------- */
-BAND.forEach(n=>{const b=document.createElement("button");b.textContent=n;
-  b.onclick=()=>{$("nameIn").value=n;begin();};$("names").appendChild(b);});
-$("start").onclick=begin;
-$("nameIn").addEventListener("keydown",e=>{if(e.key==="Enter")begin();});
-$("secretIn").addEventListener("keydown",e=>{if(e.key==="Enter")begin();});
+/* ---------- gate ---------- */
+$("gateNote").innerHTML = S.list.length + " songs, and one set of about " + TARGET_SONGS +
+  " on the night. Score what you have an opinion on, skip the rest, change your mind whenever. " +
+  "Pass is a veto: it outweighs two Yes votes. At most " + MAX_PER_ARTIST + " song per artist makes the set.";
 
-async function begin(){
-  const n=$("nameIn").value.trim();
-  secret=$("secretIn").value.trim();
-  try{
-    if(secret)localStorage.setItem("br_secret",secret);
-    if(n)localStorage.setItem("br_name",n);
-  }catch(e){}
-  if(!n){$("gateErr").textContent="Type a name so your votes can be told apart.";$("gateErr").classList.remove("hide");return;}
-  if(!secret){$("gateErr").textContent="Enter the access code (APP_SECRET in Vercel), then tap Start.";$("gateErr").classList.remove("hide");$("secretIn").focus();return;}
-  me_=n;$("gateErr").classList.add("hide");
-  $("gate").classList.add("hide");$("vote").classList.remove("hide");
+BAND.forEach((n) => {
+  const b = document.createElement("button");
+  b.textContent = n;
+  b.onclick = () => { $("nameIn").value = n; begin(); };
+  $("names").appendChild(b);
+});
+$("start").onclick = begin;
+$("nameIn").addEventListener("keydown", (e) => { if (e.key === "Enter") begin(); });
+$("secretIn").addEventListener("keydown", (e) => { if (e.key === "Enter") begin(); });
+
+async function begin() {
+  const n = $("nameIn").value.trim();
+  S.secret = $("secretIn").value.trim();
+  try {
+    if (S.secret) localStorage.setItem("br_secret", S.secret);
+    if (n) localStorage.setItem("br_name", n);
+  } catch (e) {}
+  if (!n) { $("gateErr").textContent = "Type a name so your votes can be told apart."; $("gateErr").classList.remove("hide"); return; }
+  if (!S.secret) {
+    $("gateErr").textContent = "Enter the access code (APP_SECRET in Vercel), then tap Start.";
+    $("gateErr").classList.remove("hide"); $("secretIn").focus(); return;
+  }
+  S.me = n;
+  $("gateErr").classList.add("hide");
+  $("gate").classList.add("hide"); $("vote").classList.remove("hide");
   await pull();
-  pool[me_]=myVotes;
-  const found=Object.keys(myVotes).length;
-  const u=firstUnscored();idx=u<0?0:u;
-  writeHash();render();
-  const saved=await push();
-  if(!saved&&/wrong access code/i.test(lastErr||"")){
-    $("vote").classList.add("hide");$("gate").classList.remove("hide");
-    $("gateErr").textContent="Wrong access code. Use the exact APP_SECRET value from Vercel.";
-    $("gateErr").classList.remove("hide");$("secretIn").focus();$("secretIn").select();
+  S.pool[S.me] = S.myVotes;
+  const found = Object.keys(S.myVotes).length;
+  const u = firstUnscored();
+  idx = u < 0 ? 0 : u;
+  render();
+  const saved = await persist();
+  if (!saved && /wrong access code/i.test(S.lastErr || "")) {
+    $("vote").classList.add("hide"); $("gate").classList.remove("hide");
+    $("gateErr").textContent = "Wrong access code. Use the exact APP_SECRET value from Vercel.";
+    $("gateErr").classList.remove("hide"); $("secretIn").focus(); $("secretIn").select();
     return;
   }
-  if(found)toast("Picked up where you left off \u2014 <b>"+found+"</b> of "+LIST.length+" already scored.");
+  if (found) toast("Picked up where you left off — <b>" + found + "</b> of " + S.list.length + " already scored.");
 }
-const firstUnscored=()=>LIST.findIndex(s=>myVotes[s.k]===undefined);
-const nextUnscored=f=>{for(let i=f+1;i<LIST.length;i++)if(myVotes[LIST[i].k]===undefined)return i;
-  for(let i=0;i<=f;i++)if(myVotes[LIST[i].k]===undefined)return i;return -1;};
 
-function render(){
-  if(idx>=LIST.length)idx=LIST.length-1;
-  const t=LIST[idx],v=myVotes[t.k],done=Object.keys(myVotes).length,N=LIST.length;
-  $("tnum").textContent="Track "+(idx+1)+" of "+N;
-  $("tvote").textContent=v===undefined?"Not scored":"Your vote: "+LABEL[v];
-  $("tcard").classList.toggle("unscored",v===undefined);
-  $("tname").innerHTML=t.name+(t.added?'<span class="tag">Added</span>':"");
-  $("tart").textContent=t.artist;
-  $("tdur").textContent=mmss(t.dur);
-  $("tyear").textContent=t.year||"";
-  $("tbpm").textContent=t.bpm?t.bpm+" bpm":"";
-  $("tset").textContent="Set "+t.set;
-  $("ttune").textContent=tuneOf(t);
-  $("pbar").style.width=(done/N*100)+"%";
-  $("pcount").textContent=done+" / "+N+" scored";
-  $("pleft").textContent=(N-done)+" left";
-  $("votes").querySelectorAll("button").forEach(b=>b.classList.toggle("on",+b.dataset.v===v));
-  $("prev").disabled=idx===0;$("next").disabled=idx===N-1;
-  $("next").textContent=(v===undefined?"Skip":"Next")+" \u2192";
-  $("clearv").disabled=v===undefined;$("jump").disabled=firstUnscored()<0;
+/* ---------- voting ---------- */
+const firstUnscored = () => S.list.findIndex((s) => S.myVotes[s.k] === undefined);
+const nextUnscored = (f) => {
+  for (let i = f + 1; i < S.list.length; i++) if (S.myVotes[S.list[i].k] === undefined) return i;
+  for (let i = 0; i <= f; i++) if (S.myVotes[S.list[i].k] === undefined) return i;
+  return -1;
+};
+
+function render() {
+  if (idx >= S.list.length) idx = S.list.length - 1;
+  const t = S.list[idx], v = S.myVotes[t.k], done = Object.keys(S.myVotes).length, N = S.list.length;
+  $("tnum").textContent = "Track " + (idx + 1) + " of " + N;
+  $("tvote").textContent = v === undefined ? "Not scored" : "Your vote: " + LABEL[v];
+  $("tcard").classList.toggle("unscored", v === undefined);
+  $("tname").innerHTML = t.name + (t.added ? '<span class="tag">Added</span>' : "");
+  $("tart").textContent = t.artist;
+  $("tdur").textContent = mmss(t.dur);
+  $("tyear").textContent = t.year || "";
+  $("tbpm").textContent = t.bpm ? t.bpm + " bpm" : "";
+  $("tera").textContent = eraLabel(t);
+  $("ttune").textContent = tuneOf(t);
+  $("pbar").style.width = (done / N * 100) + "%";
+  $("pcount").textContent = done + " / " + N + " scored";
+  $("pleft").textContent = (N - done) + " left";
+  $("votes").querySelectorAll("button").forEach((b) => b.classList.toggle("on", +b.dataset.v === v));
+  $("prev").disabled = idx === 0;
+  $("next").disabled = idx === N - 1;
+  $("next").textContent = (v === undefined ? "Skip" : "Next") + " →";
+  $("clearv").disabled = v === undefined;
+  $("jump").disabled = firstUnscored() < 0;
 }
-$("votes").querySelectorAll("button").forEach(b=>{
-  b.onclick=()=>{myVotes[LIST[idx].k]=+b.dataset.v;pool[me_]=myVotes;persist();
-    if(idx<LIST.length-1)idx++;render();};
+
+$("votes").querySelectorAll("button").forEach((b) => {
+  b.onclick = () => {
+    S.myVotes[S.list[idx].k] = +b.dataset.v;
+    S.pool[S.me] = S.myVotes;
+    persist();
+    if (idx < S.list.length - 1) idx++;
+    render();
+  };
 });
-$("prev").onclick=()=>{if(idx>0){idx--;render();}};
-$("next").onclick=()=>{if(idx<LIST.length-1){idx++;render();}};
-$("jump").onclick=()=>{const n=nextUnscored(idx);if(n>=0){idx=n;render();}};
-$("clearv").onclick=()=>{delete myVotes[LIST[idx].k];persist();render();};
-$("toResults").onclick=async()=>{await pull();showResults();};
-$("tabVote").onclick=()=>{$("results").classList.add("hide");$("vote").classList.remove("hide");render();};
-$("tabRes").onclick=async()=>{await pull();showResults();};
-
-/* ---------- adding songs ---------- */
-$("addTrack").onclick=()=>{
-  if(!isOwner())return;
-  const title=$("aTitle").value.trim(),artist=$("aArtist").value.trim(),
-        durRaw=$("aDur").value.trim(),set=+$("aSet").value,m=$("addMsg");
-  if(!title||!artist){m.className="err";m.textContent="Needs a title and an artist.";return;}
-  const dur=parseLen(durRaw);
-  if(!dur){m.className="err";m.textContent="Length should look like 3:45.";return;}
-  const k=keyOf(title,artist);
-  if(custom.some(c=>c.k===k)||TRACKS.some(t=>keyOf(t[0],t[1])===k)){
-    m.className="err";m.textContent="That song is already on the list.";return;}
-  const energy=+$("aEnergy").value||"";
-  const lead=$("aLead").value.trim();
-  const tags=[...$("aTags").querySelectorAll("input:checked")].map(i=>i.value).join(",");
-  custom.push({k,name:title,artist,dur,set,energy,tags,lead});relist();
-  $("aTitle").value="";$("aArtist").value="";$("aDur").value="";$("aEnergy").value="";$("aLead").value="";
-  $("aTags").querySelectorAll("input").forEach(i=>i.checked=false);
-  m.className="okmsg";m.textContent='Added "'+title+'". It sits at the end of the list \u2014 nobody\'s votes moved.';
-  persist();showResults();
-};
-function drawCustom(){
-  const owner=isOwner();
-  $("addForm").classList.toggle("hide",!owner);
-  $("addHead").textContent=owner?"Add a song":"Songs added by "+OWNER;
-  $("addNote").textContent=owner
-    ? "Anything you add goes to the end of the list, so nobody's existing votes shift. Added songs travel inside the codes, so they reach the rest of the band too."
-    : "Only "+OWNER+" can add songs to the list. Send suggestions his way and they'll appear here once he adds them.";
-  const box=$("customList");box.innerHTML="";
-  if(!custom.length){
-    box.innerHTML='<p class="note">'+(owner?"Nothing added yet.":"Nothing added yet.")+'</p>';return;
-  }
-  custom.slice().sort((a,b)=>a.k<b.k?-1:1).forEach(c=>{
-    const anyVotes=Object.keys(pool).some(n=>pool[n][c.k]!==undefined);
-    const row=document.createElement("div");row.className="crow";
-    row.innerHTML='<b>'+c.name+'</b><span>'+c.artist+'</span><span>'+mmss(c.dur)+'</span><span>Set '+c.set+'</span>'+
-      (c.energy?'<span>E'+c.energy+'</span>':'')+(c.lead?'<span>'+c.lead+'</span>':'');
-    if(owner){
-      const rm=document.createElement("button");
-      rm.textContent=anyVotes?"Voted":"Remove";rm.disabled=anyVotes;
-      if(anyVotes)rm.style.color="var(--dim)";
-      rm.onclick=()=>{custom=custom.filter(x=>x.k!==c.k);relist();persist();showResults();};
-      row.appendChild(rm);
-    }
-    box.appendChild(row);
-  });
-}
-
-/* ---------- standings ---------- */
-function voters(){return Object.keys(pool).filter(n=>Object.keys(pool[n]).length);}
-function scored(){return scoreSongs(LIST,pool);}
-function orderKeysFor(s){return draftOrder[s]||savedOrder[s]||null;}
-function orderMode(s,autoKeys){
-  const auto=(autoKeys||[]).join("\0");
-  const effective=draftOrder[s]||savedOrder[s];
-  if(draftOrder[s]){
-    const baseline=(savedOrder[s]||autoKeys||[]).join("\0");
-    if(draftOrder[s].join("\0")!==baseline)return "unsaved";
-  }
-  if(savedOrder[s]&&savedOrder[s].length){
-    if(savedOrder[s].join("\0")===auto)return "automatic";
-    return "saved";
-  }
-  return "automatic";
-}
-function setDraft(s,keys){draftOrder[s]=keys.slice();showResults();}
-function songTags(r){
-  let html=r.added?'<span class="tag">Added</span>':"";
-  if(r.why==="CAP")html+='<span class="tag cap">CAP</span>';
-  if(r.why==="neg")html+='<span class="tag neg">veto</span>';
-  return html;
-}
-function linkRow(r){
-  const L=searchLinks(r);
-  return '<div class="links">'+
-    '<a href="'+L.ug+'" target="_blank" rel="noopener">Guitar</a>'+
-    '<a href="'+L.songsterr+'" target="_blank" rel="noopener">Bass</a>'+
-    '<a href="'+L.musescore+'" target="_blank" rel="noopener">Score</a>'+
-    '<a href="'+L.genius+'" target="_blank" rel="noopener">Lyrics</a>'+
-    '</div>';
-}
-function showResults(){
-  const y=window.scrollY;
-  $("vote").classList.add("hide");$("results").classList.remove("hide");
-  $("tabRes").classList.add("on");$("tabVote").classList.remove("on");
-  const who=voters();
-  $("voters").textContent=who.length
-    ? who.map(n=>n+" \u00b7 "+Object.keys(pool[n]).length+"/"+LIST.length).join("     ")
-    : "No votes recorded yet.";
-  const rows=scored(),box=$("sets");box.innerHTML="";
-  const gens=generateSets(rows,{orderKeys:{1:orderKeysFor(1),2:orderKeysFor(2)}});
-  [1,2].forEach(s=>{
-    const gen=gens[s];
-    const el=document.createElement("div");el.className="set";
-    if(!gen.ok){
-      el.innerHTML='<div class="sethead"><h3>Set '+s+' &mdash; '+(s===1?"70s / 80s":"90s and after")+'</h3></div>'+
-        '<div class="banner fail">'+gen.error+'</div>';
-      box.appendChild(el);
-      return;
-    }
-    const run=gen.ordered.reduce((a,r)=>a+r.dur,0);
-    const autoKeys=gen.auto.map(r=>r.k);
-    const mode=orderMode(s,autoKeys);
-    const modeLabel=mode==="unsaved"?"unsaved local change":mode==="saved"?"saved on this browser":"automatic";
-    el.innerHTML='<div class="sethead"><h3>Set '+s+' &mdash; '+(s===1?"70s / 80s":"90s and after")+'</h3>'+
-      '<div class="clock mono">'+mmss(run)+' / '+mmss(TARGET[s])+'</div></div>'+
-      '<div class="meter"><i style="width:'+Math.min(run/TARGET[s]*100,100)+'%"></i>'+
-      '<div class="ticks">'+'<span></span>'.repeat(s===1?9:12)+'</div></div>'+
-      '<div class="meterfoot"><span>0:00</span><span>'+gen.ordered.length+' songs \u00b7 max '+MAX_PER_ARTIST+' per artist across both sets</span><span>'+mmss(TARGET[s])+'</span></div>';
-
-    const bar=document.createElement("div");
-    bar.className="orderbar "+mode;
-    bar.innerHTML='<span>Running order: <b>'+modeLabel+'</b></span>';
-    if(mode==="unsaved"){
-      const save=document.createElement("button");save.textContent="Save for this browser";
-      save.onclick=()=>{savedOrder[s]=(draftOrder[s]||gen.ordered.map(r=>r.k)).slice();draftOrder[s]=null;persistSaved(s);showResults();};
-      const revert=document.createElement("button");revert.textContent="Back to automatic";
-      revert.onclick=()=>{draftOrder[s]=null;savedOrder[s]=null;persistSaved(s);showResults();};
-      bar.appendChild(save);bar.appendChild(revert);
-    }else if(mode==="saved"){
-      const revert=document.createElement("button");revert.textContent="Back to automatic";
-      revert.onclick=()=>{draftOrder[s]=null;savedOrder[s]=null;persistSaved(s);showResults();};
-      bar.appendChild(revert);
-    }
-    el.appendChild(bar);
-
-    const runHead=document.createElement("div");runHead.className="runhead";runHead.textContent="Generated setlist";
-    el.appendChild(runHead);
-    const runBody=document.createElement("div");
-    gen.ordered.forEach((r,k)=>{
-      const row=document.createElement("div");
-      row.className="row"+(openRow===r.k?" open":"");
-      row.draggable=true;
-      row.dataset.k=r.k;
-      row.innerHTML='<div class="handle" title="Drag">:::</div>'+
-        '<div class="arrows">'+
-          '<button data-dir="-1" '+(k===0?"disabled":"")+'>&#9650;</button>'+
-          '<button data-dir="1" '+(k===gen.ordered.length-1?"disabled":"")+'>&#9660;</button>'+
-        '</div>'+
-        '<div class="rk mono">'+(k+1)+'</div><div class="rt"><b>'+r.name+(r.added?'<span class="tag">Added</span>':"")+
-        (tuneOf(r)?'<span class="tag tune">'+tuneOf(r)+'</span>':"")+'</b><span>'+r.artist+
-        (r.lead?" \u00b7 "+r.lead:"")+'</span>'+linkRow(r)+'</div>'+
-        '<div class="rd mono">'+mmss(r.dur)+'</div>'+
-        '<div class="rs mono">'+r.sum+'</div>';
-      row.querySelectorAll(".arrows button").forEach(btn=>{
-        btn.onclick=e=>{
-          e.stopPropagation();
-          const dir=+btn.dataset.dir;
-          const keys=gen.ordered.map(x=>x.k);
-          setDraft(s,moveKey(keys,k,k+dir));
-        };
-      });
-      row.ondragstart=e=>{
-        dragSet=s;dragFrom=k;
-        row.classList.add("dragging");
-        e.dataTransfer.effectAllowed="move";
-        e.dataTransfer.setData("text/plain",r.k);
-      };
-      row.ondragend=()=>row.classList.remove("dragging");
-      row.ondragover=e=>{e.preventDefault();e.dataTransfer.dropEffect="move";};
-      row.ondrop=e=>{
-        e.preventDefault();
-        if(dragSet!==s||dragFrom<0||dragFrom===k)return;
-        const keys=gen.ordered.map(x=>x.k);
-        setDraft(s,moveKey(keys,dragFrom,k));
-        dragSet=null;dragFrom=-1;
-      };
-      row.onclick=e=>{
-        if(e.target.closest("a,button,.handle"))return;
-        openRow=openRow===r.k?null:r.k;showResults();
-      };
-      runBody.appendChild(row);
-      if(openRow===r.k)runBody.appendChild(voteEditor(r));
-    });
-    el.appendChild(runBody);
-
-    const rankHead=document.createElement("button");
-    rankHead.className="rankhead"+(rankOpen[s]?" on":"");
-    rankHead.setAttribute("aria-expanded",rankOpen[s]?"true":"false");
-    rankHead.innerHTML='<span class="chev">\u25B6</span><span>Ranking \u2014 full pool</span>'+
-      '<span class="cnt">'+(gen.keep.length+gen.rest.length)+'</span>';
-    rankHead.onclick=()=>{rankOpen[s]=!rankOpen[s];persistRankOpen();showResults();};
-    el.appendChild(rankHead);
-
-    if(rankOpen[s]){
-      const legend=document.createElement("div");legend.className="legend";
-      legend.innerHTML=who.map(n=>'<i>'+n.slice(0,3).toUpperCase()+'</i>').join("")+'<i style="width:36px"></i>';
-      el.appendChild(legend);
-      const rankBody=document.createElement("div");
-      const addRank=(r,k,cut)=>{
-        const row=document.createElement("button");
-        row.className="row"+(cut?" cut":"")+(openRow===r.k?" open":"");
-        const cells=who.map(n=>{
-          const v=pool[n][r.k];
-          return '<div class="cell '+(v===undefined?"none":"v"+v)+(n===me_?" mine":"")+'">'+(v===undefined?"\u00b7":v)+'</div>';
-        }).join("");
-        row.innerHTML='<div class="rk mono">'+(k+1)+'</div><div class="rt"><b>'+r.name+songTags(r)+'</b><span>'+r.artist+'</span></div>'+
-          '<div class="rd mono">'+mmss(r.dur)+'</div><div class="grid">'+cells+'</div>'+
-          '<div class="rs mono">'+r.sum+'</div>';
-        row.onclick=()=>{openRow=openRow===r.k?null:r.k;showResults();};
-        rankBody.appendChild(row);
-        if(openRow===r.k)rankBody.appendChild(voteEditor(r));
-      };
-      gen.keep.forEach((r,k)=>addRank(r,k,false));
-      if(gen.rest.length){
-        const d=document.createElement("div");d.className="divider";d.textContent="below the line";rankBody.appendChild(d);
-        gen.rest.forEach((r,k)=>addRank(r,gen.keep.length+k,true));
-      }
-      el.appendChild(rankBody);
-    }
-    box.appendChild(el);
-  });
-  drawCustom();
-  window.scrollTo(0,y);
-}
-function voteEditor(r){
-  const ed=document.createElement("div");ed.className="editor";
-  ed.innerHTML='<div class="lbl">Your vote \u2014 '+r.name+'</div><div class="opts"></div>';
-  const opts=ed.querySelector(".opts");
-  [3,2,1,0].forEach(v=>{
-    const b=document.createElement("button");b.dataset.v=v;b.textContent=LABEL[v];
-    if(myVotes[r.k]===v)b.classList.add("on");
-    b.onclick=e=>{e.stopPropagation();
-      if(myVotes[r.k]===v)delete myVotes[r.k];else myVotes[r.k]=v;
-      pool[me_]=myVotes;persist();showResults();};
-    opts.appendChild(b);
-  });
-  return ed;
-}
-
-/* ---------- exports & pooling ---------- */
-function flash(btn,txt){const o=btn.textContent;btn.textContent=txt;setTimeout(()=>btn.textContent=o,1600);}
-function fallback(text,btn){
-  const ta=document.createElement("textarea");ta.value=text;ta.style.position="fixed";ta.style.opacity="0";
-  document.body.appendChild(ta);ta.select();
-  try{document.execCommand("copy");flash(btn,"Copied");}catch(e){flash(btn,"Copy failed");}
-  document.body.removeChild(ta);
-}
-function put(text,btn,okTxt){
-  if(navigator.clipboard&&navigator.clipboard.writeText)
-    navigator.clipboard.writeText(text).then(()=>flash(btn,okTxt)).catch(()=>fallback(text,btn));
-  else fallback(text,btn);
-}
-$("copySet").onclick=()=>{
-  const rows=scored();let out="BUN'S & ROSES \u2014 SETLIST  ("+VERSION+")\n";
-  const gens=generateSets(rows,{orderKeys:{1:orderKeysFor(1),2:orderKeysFor(2)}});
-  [1,2].forEach(s=>{
-    const gen=gens[s];
-    const list=gen.ok?gen.ordered:[];
-    const run=list.reduce((a,r)=>a+r.dur,0);
-    out+="\nSET "+s+" ("+mmss(run)+")\n\n";
-    if(!gen.ok){out+=gen.error+"\n";return;}
-    list.forEach((r,k)=>{out+=(k+1)+". "+r.name+" - "+r.artist+"\n";});
-  });
-  put(out,$("copySet"),"Copied");
-};
-$("copyRaw").onclick=()=>{
-  const who=voters();
-  let csv="Song,Artist,Year,Set,Duration,Added,"+who.join(",")+",Total,Votes cast\n";
-  LIST.forEach(t=>{
-    const v=who.map(n=>pool[n][t.k]===undefined?"":pool[n][t.k]);
-    const cast=v.filter(x=>x!=="");
-    const total=cast.reduce((a,b)=>a+voteWeight(b),0);
-    csv+='"'+t.name.replace(/"/g,'""')+'","'+t.artist.replace(/"/g,'""')+'",'+(t.year||"")+","+t.set+","+
-      mmss(t.dur)+","+(t.added?"yes":"")+","+v.join(",")+","+total+","+cast.length+"\n";
-  });
-  put(csv,$("copyRaw"),"Copied");
-};
-$("copyMine").onclick=()=>put(mkCode(me_,myVotes),$("copyMine"),"Copied");
-$("copyAll").onclick=()=>{
-  const lines=[mkCode(me_,myVotes)];
-  Object.keys(pool).forEach(n=>{if(n!==me_)lines.push(mkCode(n,pool[n]));});
-  put(lines.join("\n"),$("copyAll"),"Copied");
-};
-/* ---------- CSV import ---------- */
-function parseCSV(text){
-  const rows=[];let row=[],cur="",q=false;
-  for(let i=0;i<text.length;i++){
-    const c=text[i];
-    if(q){
-      if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
-      else cur+=c;
-    }else if(c==='"')q=true;
-    else if(c===","){row.push(cur);cur="";}
-    else if(c==="\n"){row.push(cur);cur="";rows.push(row);row=[];}
-    else if(c!=="\r")cur+=c;
-  }
-  if(cur!==""||row.length){row.push(cur);rows.push(row);}
-  return rows.filter(r=>r.some(x=>String(x).trim()!==""));
-}
-const RESERVED=new Set(["song","artist","year","set","duration","added","total","votes cast","notes","note"]);
-function importCSV(text){
-  const rows=parseCSV(text);
-  if(rows.length<2)return {err:"That CSV has no rows under the header."};
-  const head=rows[0].map(h=>String(h).trim());
-  const find=re=>head.findIndex(h=>re.test(h));
-  const iSong=find(/^song$/i), iArt=find(/^artist$/i);
-  if(iSong<0||iArt<0)return {err:"Needs a Song column and an Artist column."};
-  const iSet=find(/^set$/i), iDur=find(/^duration$/i);
-  const who=[];head.forEach((h,i)=>{if(h&&!RESERVED.has(h.toLowerCase()))who.push({name:h,i});});
-  if(!who.length)return {err:"No voter columns found \u2014 each voter needs a column headed with their name."};
-  const byKey={};
-  TRACKS.forEach((t,i)=>byKey[keyOf(t[0],t[1])]="b"+i);
-  custom.forEach(c=>byKey[c.k]=c.k);
-  const fresh={};who.forEach(w=>fresh[w.name]={});
-  let matched=0,created=0,skipped=0,blocked=0;
-  for(let r=1;r<rows.length;r++){
-    const row=rows[r];
-    const title=String(row[iSong]||"").trim(), artist=String(row[iArt]||"").trim();
-    if(!title||!artist){skipped++;continue;}
-    const k0=keyOf(title,artist);
-    let key=byKey[k0];
-    if(!key&&!isOwner()){blocked++;continue;}
-    if(!key){
-      const set=(iSet>=0&&+String(row[iSet]).trim()===2)?2:1;
-      let dur=210;
-      if(iDur>=0){const secs=parseLen(String(row[iDur]||"").trim());if(secs)dur=secs;}
-      custom.push({k:k0,name:title,artist:artist,dur:dur,set:set,energy:"",tags:"",lead:""});
-      byKey[k0]=k0;key=k0;created++;
-    }else matched++;
-    who.forEach(w=>{
-      const v=String(row[w.i]==null?"":row[w.i]).trim();
-      if(/^[0-3]$/.test(v))fresh[w.name][key]=+v;
-    });
-  }
-  relist();
-  const applied=[],now=Date.now();
-  who.forEach(w=>{
-    if(!Object.keys(fresh[w.name]).length)return;   // don't wipe a voter with an empty column
-    pool[w.name]=fresh[w.name];poolTs[w.name]=now;
-    if(w.name===me_)myVotes=fresh[w.name];
-    applied.push(w.name);
-  });
-  log("CSV import: "+applied.map(n=>n+":"+Object.keys(fresh[n]).length).join(", "));
-  if(!applied.length)return {err:"Found columns for "+who.map(w=>w.name).join(", ")+" but no scores in them."};
-  return {applied:applied,matched:matched,created:created,skipped:skipped,blocked:blocked,ignored:who.length-applied.length};
-}
-async function ingest(text){
-  const m=$("mergeMsg");
-  const looksCSV=/(^|\n)\s*"?song"?\s*,/i.test(text)||text.split("\n")[0].split(",").length>3;
-  if(looksCSV){
-    const r=importCSV(text);
-    if(r.err){m.className="err";m.textContent=r.err;return;}
-    m.className="okmsg";
-    m.textContent="Imported votes for "+r.applied.join(", ")+". "+r.matched+" songs matched"+
-      (r.created?", "+r.created+" new song"+(r.created===1?"":"s")+" added":"")+
-      (r.ignored?", "+r.ignored+" column(s) had no scores":"")+"."+
-      (r.blocked?" "+r.blocked+" unknown song(s) skipped \u2014 only "+OWNER+" can add songs.":"");
-    $("pasteBox").value="";$("fileName").textContent="";
-    persist();
-    const w=await pushOthers();
-    m.textContent+=w.saved?" Saved "+w.saved+" bandmate record"+(w.saved===1?"":"s")+" to the server.":"";
-    if(w.failed){m.className="err";m.textContent+=" "+w.failed+" could not be saved \u2014 keep the CSV as your backup.";}
-    showResults();return;
-  }
-  const lines=text.split(/[\n\r]+/).map(x=>x.trim()).filter(Boolean);
-  let added=0,bad=0,newSongs=0;
-  lines.forEach(l=>{const pr=rdCode(l);
-    if(pr){newSongs+=mergeDefs(pr.defs||[]);pool[pr.name]=pr.votes;poolTs[pr.name]=Date.now();if(pr.name===me_)myVotes=pr.votes;added++;}
-    else bad++;});
-  if(added){
-    m.className="okmsg";
-    m.textContent="Added votes from "+added+" "+(added===1?"person":"people")+"."+
-      (newSongs?" "+newSongs+" new song"+(newSongs===1?"":"s")+" came with them.":"")+
-      (bad?" "+bad+" line(s) not recognised.":"");
-    $("pasteBox").value="";$("fileName").textContent="";
-    persist();
-    const w=await pushOthers();
-    m.textContent+=w.saved?" Saved "+w.saved+" bandmate record"+(w.saved===1?"":"s")+" to the server.":"";
-    if(w.failed){m.className="err";m.textContent+=" "+w.failed+" could not be saved \u2014 keep the codes as your backup.";}
-    showResults();
-  }else{m.className="err";m.textContent="Couldn't read that. Codes start with BR2- or BR1-; a CSV needs Song and Artist columns.";}
-}
-$("addCodes").onclick=async()=>{
-  const t=$("pasteBox").value.trim();
-  if(!t){$("mergeMsg").className="err";$("mergeMsg").textContent="Paste some codes or a CSV first.";return;}
-  $("mergeMsg").className="note";$("mergeMsg").textContent="Working\u2026";
-  await ingest(t);
-};
-$("csvFile").onchange=e=>{
-  const f=e.target.files&&e.target.files[0];if(!f)return;
-  $("fileName").textContent=f.name;
-  const rd=new FileReader();
-  rd.onload=async()=>{$("mergeMsg").className="note";$("mergeMsg").textContent="Working\u2026";await ingest(String(rd.result));};
-  rd.onerror=()=>{$("mergeMsg").className="err";$("mergeMsg").textContent="Couldn't read that file.";};
-  rd.readAsText(f);
-  e.target.value="";
-};
-$("clearPool").onclick=()=>{
-  Object.keys(pool).forEach(n=>{if(n!==me_)delete pool[n];});
-  persist();showResults();
-};
-
-/* ---------- diagnostics ---------- */
-$("ver").textContent=VERSION;
-$("verNote").textContent="Version "+VERSION+" \u2014 "+CHANGES[VERSION];
-log("app started, version "+VERSION);
-async function runDiag(){
-  const out=[];
-  out.push("app version: "+VERSION+"  ("+CHANGES[VERSION]+")");
-  out.push("backend: "+location.origin+API);
-  out.push("last result: "+(storageOK?"OK":"FAILED"+(lastErr?" - "+lastErr:"")));
-  out.push("who am I: "+(me_||"(not chosen)")+"   owner: "+(isOwner()?"yes":"no"));
-  out.push("in memory now: "+(Object.keys(pool).length?Object.keys(pool).map(n=>n+"="+Object.keys(pool[n]||{}).length).join("  "):"nothing"));
-  try{
-    const hr=await fetch("/api/health",{cache:"no-store"});
-    const h=await hr.json();
-    out.push("health: "+(h.ok?"OK":"FAILED - "+(h.error||"")));
-    if(h.sheetTitle)out.push("  sheet: "+h.sheetTitle+"   tabs: "+(h.tabs||[]).join(", "));
-    if(h.env)out.push("  env set: "+Object.keys(h.env).filter(k=>h.env[k]).join(", ")||"  env set: none");
-    if(h.hint)out.push("  hint: "+h.hint);
-  }catch(e){out.push("health check failed: "+(e.message||e));}
-  try{
-    const r=await fetch(API,{cache:"no-store"}); const d=await r.json();
-    if(d.ok){
-      const names=Object.keys(d.voters||{});
-      out.push("rows in sheet: "+(names.length?names.map(n=>n+"="+Object.keys(d.voters[n].votes||{}).length).join("  "):"none"));
-      out.push("added songs in sheet: "+((d.custom||[]).length));
-    }else out.push("read failed: "+d.error);
-  }catch(e){out.push("read threw: "+(e.message||e));}
-  out.push("");out.push("--- activity ---");
-  $("diagOut").textContent=out.concat(diag.slice(-25)).join("\n");
-}
-$("runDiag").onclick=runDiag;
-$("copyDiag").onclick=()=>put($("diagOut").textContent||"(run the check first)",$("copyDiag"),"Copied");
+$("prev").onclick = () => { if (idx > 0) { idx--; render(); } };
+$("next").onclick = () => { if (idx < S.list.length - 1) { idx++; render(); } };
+$("jump").onclick = () => { const n = nextUnscored(idx); if (n >= 0) { idx = n; render(); } };
+$("clearv").onclick = () => { delete S.myVotes[S.list[idx].k]; persist(); render(); };
 
 /* ---------- boot ---------- */
-(async function(){
-  try{
-    const sn=localStorage.getItem("br_name"), ss=localStorage.getItem("br_secret");
-    if(ss){secret=ss;$("secretIn").value=ss;}
-    if(sn)$("nameIn").value=sn;
-    loadSavedOrders();
-  }catch(e){}
+$("ver").textContent = VERSION;
+$("verNote").textContent = "Version " + VERSION + " — " + CHANGES[VERSION];
+
+(async function () {
+  try {
+    const sn = localStorage.getItem("br_name"), ss = localStorage.getItem("br_secret");
+    if (ss) { S.secret = ss; $("secretIn").value = ss; }
+    if (sn) $("nameIn").value = sn;
+  } catch (e) {}
   await pull();
-  const who=Object.keys(pool).filter(n=>Object.keys(pool[n]||{}).length);
-  if(who.length)toast("Votes on the sheet for: <b>"+who.map(n=>n+" ("+Object.keys(pool[n]).length+")").join(", ")+"</b>. Pick your name to carry on.");
+  relist();
+  const who = Object.keys(S.pool).filter((n) => Object.keys(S.pool[n] || {}).length);
+  if (who.length) {
+    toast("Votes on the sheet for: <b>" + who.map((n) => n + " (" + Object.keys(S.pool[n]).length + ")").join(", ") +
+      "</b>. Pick your name to carry on.");
+  }
 })();
 </script>

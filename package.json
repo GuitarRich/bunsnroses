@@ -1,10 +1,16 @@
 {
   "name": "setlist-vote",
-  "version": "16.0.0",
+  "version": "17.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.14.0",
   "scripts": {
+    "dev": "node dev-server.js",
+    "dev:real": "vercel dev",
+    "env": "vercel env pull .env.development.local",
     "test": "node --test setlist.test.js"
   },
   "dependencies": {

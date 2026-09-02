@@ -1,10 +1,29 @@
 /** Setlist scoring, selection, and ordering. Browser global + ES module. */
 
 export const WEIGHTS = { 3: 6, 2: 2, 1: 1, 0: -4 };
-export const TARGET = { 1: 45 * 60, 2: 60 * 60 };
+/** One set. The show is sized by song count, not by a clock target. */
+export const TARGET_SONGS = 17;
 export const MAX_PER_ARTIST = 1;
 export const BAND = ["Rich", "Joel", "Anders", "Pete"];
 export const TAGS = ["opener", "closer", "ballad", "dedication", "slow"];
+
+/** How well a band member knows a song. Blank/unknown reads as "not-started". */
+export const STATUSES = ["not-started", "in-progress", "know-it"];
+export const STATUS_LABEL = {
+  "not-started": "Not started",
+  "in-progress": "In progress",
+  "know-it": "Know song",
+};
+
+export function normStatus(v) {
+  const s = String(v == null ? "" : v)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
+  if (s === "know-song" || s === "known" || s === "know") return "know-it";
+  if (s === "in-progress" || s === "progress" || s === "wip") return "in-progress";
+  return STATUSES.includes(s) ? s : "not-started";
+}
 
 export function voteWeight(v) {
   if (v === undefined || v === null || v === "") return 0;
@@ -39,6 +58,11 @@ export function isSlow(s) {
   return e > 0 && e <= 2;
 }
 
+/** The old two-set split is now era metadata only; it no longer divides the show. */
+export function eraLabel(s) {
+  return Number(s && s.set) === 2 ? "90s+" : "70s/80s";
+}
+
 export function scoreSongs(songs, pool) {
   const who = Object.keys(pool || {}).filter((n) => Object.keys(pool[n] || {}).length);
   return songs.map((s) => {
@@ -60,42 +84,49 @@ export function rankSongs(rows) {
   return rows.slice().sort((a, b) => b.sum - a.sum || b.musts - a.musts || a.dur - b.dur);
 }
 
-/**
- * Select songs for one set. Skip-and-continue on time.
- * Negative scores never make the cut. Artist cap marks CAP, does not drop from ranking.
- * The artist cap spans every set built with the same tally: pass the previous set's
- * usedArtists back in via opts.usedArtists and an artist picked there is capped here too.
- */
-export function selectSet(rows, setNum, opts) {
-  const target = (opts && opts.target) || TARGET[setNum];
-  const maxPer = (opts && opts.maxPerArtist) || MAX_PER_ARTIST;
-  const used = { ...((opts && opts.usedArtists) || {}) };
-  const pool = rows.filter((r) => r.set === setNum);
-  const bad = pool.filter((r) => !r.dur || r.dur <= 0);
-  if (bad.length) {
-    return {
-      ok: false,
-      error:
-        "Can't build set " +
-        setNum +
-        " — missing length on: " +
-        bad.map((r) => r.name || r.k).join(", "),
-      bad,
-      keep: [],
-      rest: [],
-      run: 0,
-      ranked: rankSongs(pool),
-      usedArtists: used,
-    };
-  }
+function keySet(list) {
+  const out = new Set();
+  (list || []).forEach((k) => {
+    if (k) out.add(String(k));
+  });
+  return out;
+}
 
-  const ranked = rankSongs(pool);
+/**
+ * Pick the songs for the single set.
+ *
+ * Manual state wins over the vote in both directions: an "out" key never makes
+ * the set however it scored, and an "in" key is always in the set even with a
+ * negative score, a capped artist, or no room left in the count. Everything
+ * else fills the remaining slots by rank, skipping vetoed songs and artists
+ * already spoken for.
+ */
+export function selectSet(rows, opts) {
+  const o = opts || {};
+  const limit = Number(o.targetSongs) > 0 ? Number(o.targetSongs) : TARGET_SONGS;
+  const maxPer = Number(o.maxPerArtist) > 0 ? Number(o.maxPerArtist) : MAX_PER_ARTIST;
+  const inSet = keySet(o.include);
+  const outSet = keySet(o.exclude);
+
+  const ranked = rankSongs(rows);
+  const used = {};
   const keep = [];
   const rest = [];
-  let run = 0;
+
+  // Forced picks first so they claim their artist before the auto fill runs.
+  ranked.forEach((r) => {
+    if (outSet.has(r.k) || !inSet.has(r.k)) return;
+    keep.push({ ...r, why: "in", forced: true });
+    used[artistKey(r.artist)] = (used[artistKey(r.artist)] || 0) + 1;
+  });
 
   ranked.forEach((r) => {
+    if (inSet.has(r.k) && !outSet.has(r.k)) return; // already forced in
     const a = artistKey(r.artist);
+    if (outSet.has(r.k)) {
+      rest.push({ ...r, why: "out", forced: true });
+      return;
+    }
     if (r.sum < 0) {
       rest.push({ ...r, why: "neg" });
       return;
@@ -104,16 +135,39 @@ export function selectSet(rows, setNum, opts) {
       rest.push({ ...r, why: "CAP" });
       return;
     }
-    if (run + r.dur > target) {
-      rest.push({ ...r, why: "time" });
+    if (keep.length >= limit) {
+      rest.push({ ...r, why: "count" });
       return;
     }
     keep.push(r);
     used[a] = (used[a] || 0) + 1;
-    run += r.dur;
   });
 
-  return { ok: true, keep, rest, run, ranked, usedArtists: used, error: "" };
+  const bad = keep.filter((r) => !r.dur || r.dur <= 0);
+  if (bad.length) {
+    return {
+      ok: false,
+      error:
+        "Can't build the set — missing length on: " +
+        bad.map((r) => r.name || r.k).join(", "),
+      bad,
+      keep: [],
+      rest: [],
+      run: 0,
+      ranked,
+      usedArtists: used,
+    };
+  }
+
+  return {
+    ok: true,
+    keep,
+    rest,
+    run: keep.reduce((a, r) => a + r.dur, 0),
+    ranked,
+    usedArtists: used,
+    error: "",
+  };
 }
 
 export function targetEnergy(i, n) {
@@ -244,36 +298,13 @@ export function applySavedOrder(autoOrder, savedKeys) {
   return out;
 }
 
-export function generateSet(rows, setNum, opts) {
-  const sel = selectSet(rows, setNum, opts);
+/** Select then order the one set. opts.orderKeys applies a saved running order. */
+export function generateSet(rows, opts) {
+  const sel = selectSet(rows, opts);
   if (!sel.ok) return { ...sel, auto: [], ordered: [] };
   const auto = orderSet(sel.keep);
   const ordered = applySavedOrder(auto, opts && opts.orderKeys);
   return { ...sel, auto, ordered };
-}
-
-export const SETS = [1, 2];
-
-/**
- * Build every set in one pass so the artist cap is global, not per set.
- * Sets are built in order, so the earlier set gets first claim on a shared artist.
- * opts.orderKeys is keyed by set number. Returns a map of set number to generateSet result.
- */
-export function generateSets(rows, opts) {
-  const sets = (opts && opts.sets) || SETS;
-  const orderKeys = (opts && opts.orderKeys) || {};
-  let used = (opts && opts.usedArtists) || {};
-  const out = {};
-  sets.forEach((setNum) => {
-    const gen = generateSet(rows, setNum, {
-      ...opts,
-      orderKeys: orderKeys[setNum],
-      usedArtists: used,
-    });
-    used = gen.usedArtists;
-    out[setNum] = gen;
-  });
-  return out;
 }
 
 export function searchLinks(song) {
@@ -323,6 +354,76 @@ export function songKey(name, artist) {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "") || "x";
   return slug(name) + "-" + slug(artist);
+}
+
+/** Read one member's status for one song out of the shared progress map. */
+export function statusOf(progress, k, member) {
+  const row = progress && progress[k];
+  if (!row) return "not-started";
+  const hit = Object.keys(row).find(
+    (n) => n.toLowerCase() === String(member || "").toLowerCase()
+  );
+  return hit ? normStatus(row[hit]) : "not-started";
+}
+
+/** Counts per status across the band for one song, for the readiness bar. */
+export function statusTally(progress, k, members) {
+  const out = { "not-started": 0, "in-progress": 0, "know-it": 0 };
+  (members || []).forEach((m) => {
+    out[statusOf(progress, k, m)]++;
+  });
+  return out;
+}
+
+/** Column layout of the Progress sheet tab before the per-member columns. */
+export const PROGRESS_BASE = ["Key", "Title", "Artist"];
+
+/**
+ * Setlist sheet rows -> { states, order }. State forces a song in or out regardless of
+ * the vote; Position is the manual running order. A blank Position means the
+ * song sits wherever the generator puts it.
+ */
+export function parseSetlist(rows) {
+  const states = {};
+  const placed = [];
+  (rows || []).forEach((r, i) => {
+    const key = String(r[0] || "").trim() || (r[1] ? songKey(r[1], r[2]) : "");
+    if (!key) return;
+    const state = String(r[3] || "").trim().toLowerCase();
+    if (state === "in" || state === "out") states[key] = state;
+    const pos = Number(r[4]);
+    if (pos > 0) placed.push({ key, pos, i });
+  });
+  placed.sort((a, b) => a.pos - b.pos || a.i - b.i);
+  return { states, order: placed.map((p) => p.key) };
+}
+
+/**
+ * Progress sheet rows -> { key: { member: status } }. Member columns are whatever the
+ * header row says after Key/Title/Artist, so adding a band member is just a
+ * new column.
+ */
+export function parseProgress(rows) {
+  const out = {};
+  if (!rows || !rows.length) return out;
+  const head = rows[0] || [];
+  const members = [];
+  for (let c = PROGRESS_BASE.length; c < head.length; c++) {
+    const n = String(head[c] || "").trim();
+    if (n) members.push({ name: n, c });
+  }
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const key = String(r[0] || "").trim() || (r[1] ? songKey(r[1], r[2]) : "");
+    if (!key) continue;
+    const row = {};
+    members.forEach((m) => {
+      const v = String(r[m.c] || "").trim();
+      if (v) row[m.name] = normStatus(v);
+    });
+    if (Object.keys(row).length) out[key] = row;
+  }
+  return out;
 }
 
 /**
@@ -377,15 +478,19 @@ export function tuningFor(map, name, artist) {
 
 const api = {
   WEIGHTS,
-  TARGET,
+  TARGET_SONGS,
   MAX_PER_ARTIST,
   BAND,
   TAGS,
+  STATUSES,
+  STATUS_LABEL,
+  normStatus,
   voteWeight,
   artistKey,
   tagsOf,
   energyOf,
   isSlow,
+  eraLabel,
   scoreSongs,
   rankSongs,
   selectSet,
@@ -396,13 +501,16 @@ const api = {
   orderSet,
   applySavedOrder,
   generateSet,
-  SETS,
-  generateSets,
   searchLinks,
   parseLen,
   mmss,
   moveKey,
   songKey,
+  statusOf,
+  statusTally,
+  parseSetlist,
+  parseProgress,
+  PROGRESS_BASE,
   TUNING_SEEDS,
   tuningFor,
 };

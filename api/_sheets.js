@@ -1,12 +1,23 @@
 import { google } from "googleapis";
-import { voteWeight, songKey, TUNING_SEEDS } from "../setlist.js";
+import {
+  voteWeight,
+  songKey,
+  TUNING_SEEDS,
+  normStatus,
+  parseSetlist,
+  parseProgress,
+  PROGRESS_BASE,
+} from "../setlist.js";
 
 const VOTES_TAB = "Votes";
 const SONGS_TAB = "AddedSongs";
 const GRID_TAB = "Grid";
 const TUNINGS_TAB = "Tunings";
+const SETLIST_TAB = "Setlist";
+const PROGRESS_TAB = "Progress";
 const SONG_HEADERS = ["Key", "Title", "Artist", "Seconds", "Set", "Energy", "Tags", "Lead"];
 const TUNING_HEADERS = ["Key", "Title", "Artist", "Tuning"];
+const SETLIST_HEADERS = ["Key", "Title", "Artist", "State", "Position"];
 
 let cached = null;
 
@@ -38,7 +49,8 @@ export async function ensureTabs() {
   const id = sheetId();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
   const have = new Set(meta.data.sheets.map((s) => s.properties.title));
-  const missing = [VOTES_TAB, SONGS_TAB, GRID_TAB, TUNINGS_TAB].filter((t) => !have.has(t));
+  const wanted = [VOTES_TAB, SONGS_TAB, GRID_TAB, TUNINGS_TAB, SETLIST_TAB, PROGRESS_TAB];
+  const missing = wanted.filter((t) => !have.has(t));
   if (missing.length) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: id,
@@ -70,9 +82,25 @@ export async function ensureTabs() {
         requestBody: { values: [TUNING_HEADERS] },
       });
     }
+    if (missing.includes(SETLIST_TAB)) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: id,
+        range: `${SETLIST_TAB}!A1:E1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [SETLIST_HEADERS] },
+      });
+    }
+    if (missing.includes(PROGRESS_TAB)) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: id,
+        range: `${PROGRESS_TAB}!A1:C1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [PROGRESS_BASE] },
+      });
+    }
   }
   await ensureSongMetaHeaders(sheets, id);
-  return { VOTES_TAB, SONGS_TAB, GRID_TAB };
+  return { VOTES_TAB, SONGS_TAB, GRID_TAB, SETLIST_TAB, PROGRESS_TAB };
 }
 
 async function ensureSongMetaHeaders(sheets, id) {
@@ -97,11 +125,16 @@ export async function readAll() {
   const id = sheetId();
   const res = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: id,
-    ranges: [`${VOTES_TAB}!A2:E200`, `${SONGS_TAB}!A2:H500`, `${TUNINGS_TAB}!A2:D500`],
+    ranges: [
+      `${VOTES_TAB}!A2:E200`,
+      `${SONGS_TAB}!A2:H500`,
+      `${TUNINGS_TAB}!A2:D500`,
+      `${SETLIST_TAB}!A2:E500`,
+      `${PROGRESS_TAB}!A1:Z500`,
+    ],
   });
-  const [voteRows = [], songRows = [], tuningRows = []] = res.data.valueRanges.map(
-    (r) => r.values || []
-  );
+  const [voteRows = [], songRows = [], tuningRows = [], setlistRows = [], progressRows = []] =
+    res.data.valueRanges.map((r) => r.values || []);
 
   const voters = {};
   for (const r of voteRows) {
@@ -145,7 +178,104 @@ export async function readAll() {
     tunings
   );
 
-  return { voters, custom, tunings: seeded };
+  return {
+    voters,
+    custom,
+    tunings: seeded,
+    plan: { ...parseSetlist(setlistRows), progress: parseProgress(progressRows) },
+  };
+}
+
+/**
+ * Rewrite the whole Setlist tab from the current song list. Owner-only,
+ * enforced by the caller. Every song gets a row so the sheet is a complete,
+ * editable picture rather than a sparse override list.
+ */
+export async function writeSetlist(songs, states, order) {
+  await ensureTabs();
+  const sheets = sheetsClient();
+  const id = sheetId();
+  const pos = {};
+  (order || []).forEach((k, i) => {
+    if (k && pos[k] === undefined) pos[k] = i + 1;
+  });
+  const values = (songs || []).map((s) => [
+    s.k,
+    s.name,
+    s.artist || "",
+    states && (states[s.k] === "in" || states[s.k] === "out") ? states[s.k] : "",
+    pos[s.k] === undefined ? "" : pos[s.k],
+  ]);
+  await sheets.spreadsheets.values.clear({ spreadsheetId: id, range: `${SETLIST_TAB}!A2:E500` });
+  if (!values.length) return { states: {}, order: [] };
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: id,
+    range: `${SETLIST_TAB}!A2`,
+    valueInputOption: "RAW",
+    requestBody: { values },
+  });
+  return parseSetlist(values);
+}
+
+/**
+ * Merge one member's statuses into the Progress grid. Reads the tab, edits the
+ * member's own column, writes it back — other members' columns are untouched,
+ * so two people saving at once can only collide on the same cell.
+ */
+export async function writeProgress(songs, member, updates) {
+  await ensureTabs();
+  const sheets = sheetsClient();
+  const id = sheetId();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: id,
+    range: `${PROGRESS_TAB}!A1:Z500`,
+  });
+  const rows = (res.data.values || []).map((r) => r.slice());
+  const head = rows.length ? rows[0].slice() : PROGRESS_BASE.slice();
+  for (let i = 0; i < PROGRESS_BASE.length; i++) head[i] = PROGRESS_BASE[i];
+
+  let col = head.findIndex(
+    (h, i) => i >= PROGRESS_BASE.length && String(h || "").trim().toLowerCase() === String(member).trim().toLowerCase()
+  );
+  if (col < 0) {
+    col = Math.max(head.length, PROGRESS_BASE.length);
+    head[col] = String(member).trim();
+  }
+
+  const byKey = {};
+  for (let i = 1; i < rows.length; i++) {
+    const key = String(rows[i][0] || "").trim() || (rows[i][1] ? songKey(rows[i][1], rows[i][2]) : "");
+    if (key) byKey[key] = rows[i];
+  }
+  // A row per catalog song keeps the tab readable and stable between saves.
+  const body = [];
+  (songs || []).forEach((s) => {
+    const r = byKey[s.k] || [s.k, s.name, s.artist || ""];
+    r[0] = s.k;
+    r[1] = s.name;
+    r[2] = s.artist || "";
+    if (Object.prototype.hasOwnProperty.call(updates || {}, s.k)) r[col] = normStatus(updates[s.k]);
+    body.push(r);
+    delete byKey[s.k];
+  });
+  Object.keys(byKey).forEach((k) => body.push(byKey[k])); // keep rows for songs we no longer know
+
+  const width = body.reduce((w, r) => Math.max(w, r.length), head.length);
+  const pad = (r) => {
+    const out = r.slice();
+    for (let i = 0; i < width; i++) if (out[i] === undefined || out[i] === null) out[i] = "";
+    return out.slice(0, width);
+  };
+  const values = [pad(head), ...body.map(pad)];
+
+  await sheets.spreadsheets.values.clear({ spreadsheetId: id, range: `${PROGRESS_TAB}!A1:Z500` });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: id,
+    range: `${PROGRESS_TAB}!A1`,
+    valueInputOption: "RAW",
+    requestBody: { values },
+  });
+  return parseProgress(values);
 }
 
 /**

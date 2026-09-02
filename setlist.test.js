@@ -9,12 +9,17 @@ import {
   orderSet,
   applySavedOrder,
   generateSet,
-  generateSets,
   moveKey,
   parseLen,
   mmss,
   songKey,
   tuningFor,
+  normStatus,
+  statusOf,
+  statusTally,
+  parseSetlist,
+  parseProgress,
+  eraLabel,
   TUNING_SEEDS,
 } from "./setlist.js";
 
@@ -55,216 +60,289 @@ describe("weights", () => {
 });
 
 describe("selectSet", () => {
-  it("never includes a negative total, even with time left", () => {
+  it("takes the top scorers up to the song target", () => {
     const rows = [
-      song({ k: "good", name: "Good", sum: 4, dur: 120 }),
-      song({ k: "bad", name: "Bad", sum: -4, dur: 120 }),
+      song({ k: "a", sum: 9, artist: "A" }),
+      song({ k: "b", sum: 8, artist: "B" }),
+      song({ k: "c", sum: 7, artist: "C" }),
     ];
-    const { keep, rest } = selectSet(rows, 1, { target: 45 * 60 });
-    assert.deepEqual(keep.map((s) => s.k), ["good"]);
-    assert.equal(rest[0].why, "neg");
+    const sel = selectSet(rows, { targetSongs: 2 });
+    assert.deepEqual(sel.keep.map((r) => r.k), ["a", "b"]);
+    assert.deepEqual(sel.rest.map((r) => [r.k, r.why]), [["c", "count"]]);
   });
 
-  it("caps at 1 per artist by default and tags extras CAP", () => {
+  it("never includes a negative total, even with room left", () => {
     const rows = [
-      song({ k: "a1", name: "A1", artist: "Nirvana", sum: 12, dur: 120 }),
-      song({ k: "a2", name: "A2", artist: "Nirvana", sum: 10, dur: 120 }),
-      song({ k: "a3", name: "A3", artist: "Nirvana", sum: 8, dur: 120 }),
-      song({ k: "b1", name: "B1", artist: "Pearl Jam", sum: 6, dur: 120 }),
+      song({ k: "good", sum: 4, artist: "A" }),
+      song({ k: "vetoed", sum: -2, artist: "B" }),
     ];
-    const { keep, rest } = selectSet(rows, 1, { target: 45 * 60 });
-    assert.deepEqual(keep.map((s) => s.k), ["a1", "b1"]);
-    assert.equal(rest.find((s) => s.k === "a2").why, "CAP");
-    assert.equal(rest.find((s) => s.k === "a3").why, "CAP");
+    const sel = selectSet(rows, { targetSongs: 10 });
+    assert.deepEqual(sel.keep.map((r) => r.k), ["good"]);
+    assert.equal(sel.rest[0].why, "neg");
   });
 
-  it("still honours an explicit maxPerArtist override", () => {
+  it("caps an artist at one song across the whole set", () => {
     const rows = [
-      song({ k: "a1", name: "A1", artist: "Nirvana", sum: 12, dur: 120 }),
-      song({ k: "a2", name: "A2", artist: "Nirvana", sum: 10, dur: 120 }),
-      song({ k: "a3", name: "A3", artist: "Nirvana", sum: 8, dur: 120 }),
-      song({ k: "b1", name: "B1", artist: "Pearl Jam", sum: 6, dur: 120 }),
+      song({ k: "a1", sum: 9, artist: "Nirvana" }),
+      song({ k: "a2", sum: 8, artist: "Nirvana" }),
+      song({ k: "b1", sum: 7, artist: "Ramones" }),
     ];
-    const { keep } = selectSet(rows, 1, { target: 45 * 60, maxPerArtist: 2 });
-    assert.deepEqual(keep.map((s) => s.k), ["a1", "a2", "b1"]);
+    const sel = selectSet(rows, { targetSongs: 10 });
+    assert.deepEqual(sel.keep.map((r) => r.k), ["a1", "b1"]);
+    assert.equal(sel.rest.find((r) => r.k === "a2").why, "CAP");
   });
 
-  it("carries the artist tally in from a previous set", () => {
+  it("keeps a manually included song that lost the vote", () => {
     const rows = [
-      song({ k: "a2", name: "A2", artist: "Nirvana", sum: 10, dur: 120, set: 2 }),
-      song({ k: "b2", name: "B2", artist: "Pearl Jam", sum: 8, dur: 120, set: 2 }),
+      song({ k: "loser", sum: -9, artist: "A" }),
+      song({ k: "winner", sum: 9, artist: "B" }),
     ];
-    const { keep, rest, usedArtists } = selectSet(rows, 2, { usedArtists: { nirvana: 1 } });
-    assert.deepEqual(keep.map((s) => s.k), ["b2"]);
-    assert.equal(rest.find((s) => s.k === "a2").why, "CAP");
-    assert.deepEqual(usedArtists, { nirvana: 1, "pearl jam": 1 });
+    const sel = selectSet(rows, { targetSongs: 10, include: ["loser"] });
+    const keys = sel.keep.map((r) => r.k);
+    assert.ok(keys.includes("loser"), "forced song must be in the set");
+    assert.ok(keys.includes("winner"));
+    assert.equal(sel.keep.find((r) => r.k === "loser").why, "in");
   });
 
-  it("does not mutate the usedArtists it was given", () => {
-    const rows = [song({ k: "a1", name: "A1", artist: "Nirvana", sum: 10, dur: 120 })];
-    const seed = {};
-    selectSet(rows, 1, { usedArtists: seed });
-    assert.deepEqual(seed, {});
+  it("a forced song claims its artist so the cap still holds", () => {
+    const rows = [
+      song({ k: "deep", sum: 1, artist: "AC/DC" }),
+      song({ k: "hit", sum: 9, artist: "AC/DC" }),
+    ];
+    const sel = selectSet(rows, { targetSongs: 10, include: ["deep"] });
+    assert.deepEqual(sel.keep.map((r) => r.k), ["deep"]);
+    assert.equal(sel.rest.find((r) => r.k === "hit").why, "CAP");
   });
 
-  it("skips a song that overruns and keeps walking for a shorter one", () => {
+  it("a forced song takes a slot, so the set stays at the target size", () => {
     const rows = [
-      song({ k: "long", name: "Long", artist: "A", sum: 10, dur: 400 }),
-      song({ k: "mid", name: "Mid", artist: "B", sum: 8, dur: 200 }),
-      song({ k: "short", name: "Short", artist: "C", sum: 6, dur: 100 }),
+      song({ k: "a", sum: 9, artist: "A" }),
+      song({ k: "b", sum: 8, artist: "B" }),
+      song({ k: "pet", sum: 1, artist: "C" }),
     ];
-    const { keep } = selectSet(rows, 1, { target: 320 });
-    assert.deepEqual(keep.map((s) => s.k), ["mid", "short"]);
+    const sel = selectSet(rows, { targetSongs: 2, include: ["pet"] });
+    assert.deepEqual(sel.keep.map((r) => r.k).sort(), ["a", "pet"]);
+    assert.equal(sel.rest.find((r) => r.k === "b").why, "count");
   });
 
-  it("hard-fails when any pooled song has no length", () => {
+  it("forced songs all go in even when they overrun the target", () => {
     const rows = [
-      song({ k: "ok", name: "Ok", sum: 4, dur: 180 }),
-      song({ k: "zero", name: "Zero", sum: 10, dur: 0 }),
+      song({ k: "p1", sum: 0, artist: "A" }),
+      song({ k: "p2", sum: 0, artist: "B" }),
+      song({ k: "p3", sum: 0, artist: "C" }),
+      song({ k: "auto", sum: 9, artist: "D" }),
     ];
-    const out = selectSet(rows, 1, { target: 45 * 60 });
-    assert.equal(out.ok, false);
-    assert.match(out.error, /Zero/);
-    assert.equal(out.keep.length, 0);
+    const sel = selectSet(rows, { targetSongs: 2, include: ["p1", "p2", "p3"] });
+    assert.deepEqual(sel.keep.map((r) => r.k).sort(), ["p1", "p2", "p3"]);
+    assert.equal(sel.rest.find((r) => r.k === "auto").why, "count");
   });
 
-  it("tie-breaks MUST count then shorter duration", () => {
+  it("drops an excluded song however well it scored", () => {
     const rows = [
-      song({ k: "long", name: "Long", artist: "A", sum: 6, musts: 0, dur: 300 }),
-      song({ k: "must", name: "Must", artist: "B", sum: 6, musts: 2, dur: 300 }),
-      song({ k: "short", name: "Short", artist: "C", sum: 6, musts: 0, dur: 120 }),
+      song({ k: "banned", sum: 99, artist: "A" }),
+      song({ k: "ok", sum: 1, artist: "B" }),
     ];
-    const { ranked } = selectSet(rows, 1, { target: 45 * 60 });
-    assert.deepEqual(ranked.map((s) => s.k), ["must", "short", "long"]);
+    const sel = selectSet(rows, { targetSongs: 10, exclude: ["banned"] });
+    assert.deepEqual(sel.keep.map((r) => r.k), ["ok"]);
+    assert.equal(sel.rest.find((r) => r.k === "banned").why, "out");
+  });
+
+  it("exclude beats include when a key is in both", () => {
+    const rows = [song({ k: "x", sum: 5, artist: "A" })];
+    const sel = selectSet(rows, { targetSongs: 10, include: ["x"], exclude: ["x"] });
+    assert.equal(sel.keep.length, 0);
+    assert.equal(sel.rest[0].why, "out");
+  });
+
+  it("frees the artist slot when its song is excluded", () => {
+    const rows = [
+      song({ k: "a1", sum: 9, artist: "Nirvana" }),
+      song({ k: "a2", sum: 8, artist: "Nirvana" }),
+    ];
+    const sel = selectSet(rows, { targetSongs: 10, exclude: ["a1"] });
+    assert.deepEqual(sel.keep.map((r) => r.k), ["a2"]);
+  });
+
+  it("refuses to build when a song in the set has no length", () => {
+    const rows = [song({ k: "a", name: "No Length", sum: 5, dur: 0 })];
+    const sel = selectSet(rows, { targetSongs: 10 });
+    assert.equal(sel.ok, false);
+    assert.match(sel.error, /No Length/);
+  });
+
+  it("ignores the era field when choosing — one set now, not two", () => {
+    const rows = [
+      song({ k: "old", sum: 5, set: 1, artist: "A" }),
+      song({ k: "new", sum: 4, set: 2, artist: "B" }),
+    ];
+    const sel = selectSet(rows, { targetSongs: 10 });
+    assert.deepEqual(sel.keep.map((r) => r.k), ["old", "new"]);
   });
 });
 
 describe("ordering", () => {
-  it("penalises a closer that is not last", () => {
-    const closer = song({ k: "c", name: "C", tags: "closer", energy: 5, dur: 180 });
-    const other = song({ k: "o", name: "O", energy: 4, dur: 180 });
-    const wrong = orderCost([closer, other]);
-    const right = orderCost([other, closer]);
-    assert.ok(wrong > right);
-  });
-
-  it("penalises slow songs in the last three more than the first three", () => {
-    const slow = song({ k: "s", name: "S", energy: 1, tags: "slow", dur: 180 });
-    const hot = (k) => song({ k, name: k, energy: 5, dur: 180 });
-    const atEnd = orderCost([hot("a"), hot("b"), hot("c"), slow]);
-    const atStart = orderCost([slow, hot("a"), hot("b"), hot("c")]);
-    assert.ok(atEnd > atStart);
-  });
-
-  it("seed+repair puts a tagged closer last when selected", () => {
-    const songs = [
-      song({ k: "c", name: "Closer", tags: "closer", energy: 5, dur: 180 }),
-      song({ k: "o", name: "Opener", tags: "opener", energy: 5, dur: 180 }),
-      song({ k: "m", name: "Mid", energy: 3, dur: 180 }),
+  it("puts a closer last and an opener first", () => {
+    const rows = [
+      song({ k: "mid", energy: 3 }),
+      song({ k: "end", tags: "closer", energy: 5 }),
+      song({ k: "top", tags: "opener", energy: 5 }),
     ];
-    const ordered = orderSet(songs);
-    assert.equal(ordered[ordered.length - 1].k, "c");
-    assert.equal(ordered[0].k, "o");
+    const order = seedOrder(rows);
+    assert.equal(order[0].k, "top");
+    assert.equal(order[order.length - 1].k, "end");
   });
 
-  it("seedOrder prefers opener first", () => {
-    const songs = [
-      song({ k: "m", name: "Mid", energy: 3 }),
-      song({ k: "o", name: "Opener", tags: "opener", energy: 5 }),
-    ];
-    assert.equal(seedOrder(songs)[0].k, "o");
+  it("charges for a slow song in the last three slots", () => {
+    const fast = [song({ k: "a", energy: 5 }), song({ k: "b", energy: 5 }), song({ k: "c", energy: 5 })];
+    const slowEnd = [song({ k: "a", energy: 5 }), song({ k: "b", energy: 5 }), song({ k: "c", energy: 1 })];
+    assert.ok(orderCost(slowEnd) > orderCost(fast));
+  });
+
+  it("orderSet returns every song exactly once", () => {
+    const rows = [1, 2, 3, 4, 5].map((i) => song({ k: "s" + i, energy: (i % 5) + 1 }));
+    const out = orderSet(rows);
+    assert.equal(out.length, rows.length);
+    assert.deepEqual(new Set(out.map((r) => r.k)).size, rows.length);
   });
 });
 
 describe("applySavedOrder", () => {
-  it("keys by identity, drops missing songs, appends new ones", () => {
+  it("follows the saved keys, skips dropped songs, appends new ones", () => {
     const auto = [song({ k: "a" }), song({ k: "b" }), song({ k: "c" })];
     const out = applySavedOrder(auto, ["c", "gone", "a"]);
-    assert.deepEqual(out.map((s) => s.k), ["c", "a", "b"]);
+    assert.deepEqual(out.map((r) => r.k), ["c", "a", "b"]);
   });
 
-  it("moveKey reorders without losing items", () => {
-    assert.deepEqual(moveKey(["a", "b", "c"], 2, 0), ["c", "a", "b"]);
-  });
-});
-
-describe("generateSets", () => {
-  it("caps an artist across both sets, earlier set claims it first", () => {
-    const rows = [
-      song({ k: "a1", name: "A1", artist: "Nirvana", sum: 4, dur: 120, set: 1 }),
-      song({ k: "a2", name: "A2", artist: "Nirvana", sum: 99, dur: 120, set: 2 }),
-      song({ k: "b2", name: "B2", artist: "Pearl Jam", sum: 8, dur: 120, set: 2 }),
-    ];
-    const out = generateSets(rows, {});
-    assert.deepEqual(out[1].ordered.map((s) => s.k), ["a1"]);
-    assert.deepEqual(out[2].ordered.map((s) => s.k), ["b2"]);
-    assert.equal(out[2].rest.find((s) => s.k === "a2").why, "CAP");
-  });
-
-  it("keeps per-set saved orders apart", () => {
-    const rows = [
-      song({ k: "a", name: "A", artist: "A", sum: 8, dur: 120, set: 1 }),
-      song({ k: "b", name: "B", artist: "B", sum: 6, dur: 120, set: 1 }),
-      song({ k: "c", name: "C", artist: "C", sum: 4, dur: 120, set: 2 }),
-      song({ k: "d", name: "D", artist: "D", sum: 2, dur: 120, set: 2 }),
-    ];
-    const out = generateSets(rows, { orderKeys: { 1: ["b", "a"], 2: ["d", "c"] } });
-    assert.deepEqual(out[1].ordered.map((s) => s.k), ["b", "a"]);
-    assert.deepEqual(out[2].ordered.map((s) => s.k), ["d", "c"]);
-  });
-
-  it("a failed set still lets the other set build", () => {
-    const rows = [
-      song({ k: "zero", name: "Zero", artist: "A", sum: 10, dur: 0, set: 1 }),
-      song({ k: "c", name: "C", artist: "C", sum: 4, dur: 120, set: 2 }),
-    ];
-    const out = generateSets(rows, {});
-    assert.equal(out[1].ok, false);
-    assert.equal(out[2].ok, true);
-    assert.deepEqual(out[2].ordered.map((s) => s.k), ["c"]);
+  it("falls back to the automatic order when nothing is saved", () => {
+    const auto = [song({ k: "a" }), song({ k: "b" })];
+    assert.deepEqual(applySavedOrder(auto, []).map((r) => r.k), ["a", "b"]);
   });
 });
 
 describe("generateSet", () => {
-  it("selects then orders and honours saved keys", () => {
+  it("selects, orders, then applies the manual running order", () => {
     const rows = [
-      song({ k: "a", name: "A", artist: "A", sum: 8, energy: 5, tags: "opener", dur: 180 }),
-      song({ k: "b", name: "B", artist: "B", sum: 6, energy: 3, dur: 180 }),
-      song({ k: "c", name: "C", artist: "C", sum: 4, energy: 5, tags: "closer", dur: 180 }),
+      song({ k: "a", sum: 9, artist: "A", energy: 4 }),
+      song({ k: "b", sum: 8, artist: "B", energy: 4 }),
+      song({ k: "c", sum: 7, artist: "C", energy: 4 }),
     ];
-    const out = generateSet(rows, 1, { target: 45 * 60, orderKeys: ["c", "b", "a"] });
-    assert.equal(out.ok, true);
-    assert.deepEqual(out.ordered.map((s) => s.k), ["c", "b", "a"]);
-    assert.equal(out.auto[out.auto.length - 1].k, "c");
+    const gen = generateSet(rows, { targetSongs: 3, orderKeys: ["c", "b", "a"] });
+    assert.equal(gen.ok, true);
+    assert.deepEqual(gen.ordered.map((r) => r.k), ["c", "b", "a"]);
+    assert.equal(gen.ordered.length, gen.auto.length);
+  });
+
+  it("reports the failure instead of a half-built set", () => {
+    const gen = generateSet([song({ k: "a", name: "Broken", sum: 5, dur: 0 })], { targetSongs: 5 });
+    assert.equal(gen.ok, false);
+    assert.deepEqual(gen.ordered, []);
+  });
+});
+
+describe("moveKey", () => {
+  it("moves an item without losing any", () => {
+    assert.deepEqual(moveKey(["a", "b", "c"], 0, 2), ["b", "c", "a"]);
+    assert.deepEqual(moveKey(["a", "b", "c"], 2, 0), ["c", "a", "b"]);
+  });
+});
+
+describe("learning status", () => {
+  it("normalises whatever the sheet holds", () => {
+    assert.equal(normStatus("Know Song"), "know-it");
+    assert.equal(normStatus("in progress"), "in-progress");
+    assert.equal(normStatus("WIP"), "in-progress");
+    assert.equal(normStatus(""), "not-started");
+    assert.equal(normStatus("nonsense"), "not-started");
+  });
+
+  it("reads a member's status case-insensitively and defaults to not started", () => {
+    const progress = { a: { Rich: "know-it" } };
+    assert.equal(statusOf(progress, "a", "rich"), "know-it");
+    assert.equal(statusOf(progress, "a", "Joel"), "not-started");
+    assert.equal(statusOf(progress, "missing", "Rich"), "not-started");
+  });
+
+  it("tallies the band for the readiness bar", () => {
+    const progress = { a: { Rich: "know-it", Joel: "in-progress" } };
+    assert.deepEqual(statusTally(progress, "a", ["Rich", "Joel", "Pete"]), {
+      "not-started": 1,
+      "in-progress": 1,
+      "know-it": 1,
+    });
+  });
+});
+
+describe("plan sheet parsing", () => {
+  it("reads in/out state and orders by position", () => {
+    const { states, order } = parseSetlist([
+      ["b1", "One", "A", "in", 2],
+      ["b2", "Two", "B", "", ""],
+      ["b3", "Three", "C", "out", ""],
+      ["b4", "Four", "D", "", 1],
+    ]);
+    assert.deepEqual(states, { b1: "in", b3: "out" });
+    assert.deepEqual(order, ["b4", "b1"]);
+  });
+
+  it("ignores rows with no key and junk state values", () => {
+    const { states, order } = parseSetlist([["", "", "", "in", 1], ["b1", "One", "A", "maybe", ""]]);
+    assert.deepEqual(states, {});
+    assert.deepEqual(order, []);
+  });
+
+  it("falls back to a title/artist key when the Key cell is blank", () => {
+    const { states } = parseSetlist([["", "Kiss", "Prince", "in", ""]]);
+    assert.deepEqual(states, { [songKey("Kiss", "Prince")]: "in" });
+  });
+
+  it("reads member columns out of the progress grid header", () => {
+    const progress = parseProgress([
+      ["Key", "Title", "Artist", "Rich", "Joel"],
+      ["b1", "One", "A", "Know Song", ""],
+      ["b2", "Two", "B", "", "in progress"],
+      ["b3", "Three", "C", "", ""],
+    ]);
+    assert.deepEqual(progress, { b1: { Rich: "know-it" }, b2: { Joel: "in-progress" } });
+  });
+
+  it("returns an empty map for an empty tab", () => {
+    assert.deepEqual(parseProgress([]), {});
+    assert.deepEqual(parseProgress([["Key", "Title", "Artist"]]), {});
   });
 });
 
 describe("parseLen / mmss", () => {
-  it("parses m:ss and rejects junk", () => {
+  it("reads m:ss and rejects nonsense", () => {
     assert.equal(parseLen("3:45"), 225);
-    assert.equal(parseLen("3:23:00"), 203);
+    assert.equal(parseLen("0:30"), 30);
     assert.equal(parseLen("nope"), 0);
+    assert.equal(parseLen("99:00"), 0);
+  });
+
+  it("round-trips through mmss", () => {
     assert.equal(mmss(225), "3:45");
+    assert.equal(mmss(60), "1:00");
+    assert.equal(mmss(0), "0:00");
+  });
+});
+
+describe("eras", () => {
+  it("labels the old set field as an era, not a set", () => {
+    assert.equal(eraLabel({ set: 1 }), "70s/80s");
+    assert.equal(eraLabel({ set: 2 }), "90s+");
   });
 });
 
 describe("tunings", () => {
-  it("songKey slugs name and artist", () => {
-    assert.equal(songKey("Riff Raff", "AC/DC"), "riffraff-acdc");
-    assert.equal(songKey("Rockin` in the Free World", "Neil Young"), "rockininthefreeworld-neilyoung");
+  it("keys on name and artist alike regardless of punctuation", () => {
+    assert.equal(songKey("Would?", "Alice In Chains"), songKey("would", "alice in chains"));
   });
-  it("sheet row wins over seed, even when blank", () => {
-    assert.equal(tuningFor({ "riffraff-acdc": "Drop D" }, "Riff Raff", "AC/DC"), "Drop D");
-    assert.equal(tuningFor({ "riffraff-acdc": "" }, "Riff Raff", "AC/DC"), "");
-  });
-  it("falls back to seeds when the sheet has no row", () => {
-    assert.equal(tuningFor({}, "Riff Raff", "AC/DC"), "E standard");
-    assert.equal(tuningFor(null, "Cherub Rock", "The Smashing Pumpkins"), "Eb standard");
-    assert.equal(tuningFor({}, "Unknown Song", "Nobody"), "");
-  });
-  it("every seed has a non-empty tuning", () => {
-    for (const t of TUNING_SEEDS) {
-      assert.ok(t.name && t.artist && t.tuning, JSON.stringify(t));
-    }
+
+  it("a blank sheet cell means no tuning, not fall back to the seed", () => {
+    const seeded = TUNING_SEEDS[0];
+    const k = songKey(seeded.name, seeded.artist);
+    assert.equal(tuningFor({}, seeded.name, seeded.artist), seeded.tuning);
+    assert.equal(tuningFor({ [k]: "" }, seeded.name, seeded.artist), "");
+    assert.equal(tuningFor({ [k]: "Drop C" }, seeded.name, seeded.artist), "Drop C");
   });
 });
