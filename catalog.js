@@ -70,11 +70,12 @@ export const TRACKS=[
 
 export const BAND = ["Rich", "Joel", "Anders", "Pete"];
 export const OWNER = "Rich";            // only this person edits songs and the setlist
-export const VERSION = "v18";
+export const VERSION = "v19";
 export const LABEL = { 3: "Must play", 2: "Yes", 1: "Maybe", 0: "Pass" };
 export const NB = TRACKS.length;        // built-in count (code positions never change)
 
 export const CHANGES = {
+ "v19":"Lyric book — a printable, PDF-ready sheet of every song's words in running order, tuning in the title. Paste the words into the sheet's Lyrics tab",
  "v18":"Set size is now yours to set — the Songs in the set stepper on the setlist page, stored in the sheet",
  "v17":"One set of 17 — standings moved to /results.html, with manual in/out, running order, and per-member learning status",
  "v16":"Guitar tunings on every song — edit them in the sheet's Tunings tab",

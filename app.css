@@ -133,6 +133,8 @@
   font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif;
   transition:background .12s,color .12s}
 #sv .btn:hover{background:var(--lamp);color:#14120F}
+/* The actions row mixes buttons and links; a link needs the box behaviour spelt out. */
+#sv a.btn{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none}
 #sv .btn.ghost{border-color:var(--line);color:var(--dim)}
 #sv .btn.ghost:hover{background:var(--panel2);color:var(--cream)}
 

@@ -25,6 +25,9 @@ import {
   MAX_SONGS,
   eraLabel,
   TUNING_SEEDS,
+  parseLyrics,
+  lyricsFor,
+  lyricBlocks,
 } from "./setlist.js";
 
 function song(partial) {
@@ -383,5 +386,38 @@ describe("tunings", () => {
     assert.equal(tuningFor({}, seeded.name, seeded.artist), seeded.tuning);
     assert.equal(tuningFor({ [k]: "" }, seeded.name, seeded.artist), "");
     assert.equal(tuningFor({ [k]: "Drop C" }, seeded.name, seeded.artist), "Drop C");
+  });
+});
+
+describe("lyrics", () => {
+  it("reads the sheet rows into a map, keyed like everything else", () => {
+    const map = parseLyrics([
+      ["", "Would?", "Alice In Chains", "line one\nline two"],
+      ["custom1", "A Song", "A Band", "words"],
+      ["", "", "", "orphan"],
+    ]);
+    assert.equal(map[songKey("Would?", "Alice In Chains")], "line one\nline two");
+    assert.equal(map.custom1, "words");
+    assert.equal(Object.keys(map).length, 2);
+  });
+
+  it("a row with a blank cell means no lyrics yet, not a missing song", () => {
+    const map = parseLyrics([["", "Would?", "Alice In Chains", ""]]);
+    assert.ok(songKey("Would?", "Alice In Chains") in map);
+    assert.equal(lyricsFor(map, "Would?", "Alice In Chains"), "");
+    assert.equal(lyricsFor({}, "Would?", "Alice In Chains"), "");
+  });
+
+  it("normalises windows line endings and trims the outer whitespace", () => {
+    const map = parseLyrics([["k1", "T", "A", "\r\n one \r\n two \r\n"]]);
+    assert.equal(map.k1.includes("\r"), true);
+    assert.equal(lyricsFor({ k1: map.k1 }, "T", "A"), "");
+    assert.equal(lyricsFor(parseLyrics([["", "T", "A", "\r\none\r\ntwo\r\n"]]), "T", "A"), "one\ntwo");
+  });
+
+  it("splits into blocks on blank lines so a verse survives a page break", () => {
+    assert.deepEqual(lyricBlocks("one\ntwo\n\n\nthree"), ["one\ntwo", "three"]);
+    assert.deepEqual(lyricBlocks(""), []);
+    assert.deepEqual(lyricBlocks("   \n\n  "), []);
   });
 });

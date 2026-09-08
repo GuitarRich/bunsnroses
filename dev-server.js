@@ -12,7 +12,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseSetlist, parseProgress, parseSettings, normStatus, normLimit, TARGET_SONGS } from "./setlist.js";
+import { parseSetlist, parseProgress, parseSettings, parseLyrics, normStatus, normLimit, TARGET_SONGS, songKey } from "./setlist.js";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 8900;
@@ -31,6 +31,7 @@ let custom = [];
 let setlistRows = [];   // rows as the Setlist tab would hold them
 let progressRows = [];  // rows as the Progress tab would hold them
 let settingsRows = [["Song limit", TARGET_SONGS]];
+let lyricRows = [];        // rows as the Lyrics tab would hold them
 
 const plan = () => ({
   ...parseSetlist(setlistRows),
@@ -82,7 +83,7 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (p === "/api/health") {
-      return json(res, 200, { ok: true, sheetTitle: "(offline dev stub)", tabs: ["Votes", "AddedSongs", "Grid", "Tunings", "Setlist", "Progress", "Settings"], env: { OFFLINE: true }, hint: "This is dev-server.js, not the real sheet." });
+      return json(res, 200, { ok: true, sheetTitle: "(offline dev stub)", tabs: ["Votes", "AddedSongs", "Grid", "Tunings", "Setlist", "Progress", "Settings", "Lyrics"], env: { OFFLINE: true }, hint: "This is dev-server.js, not the real sheet." });
     }
 
     if (p === "/api/votes") {
@@ -98,6 +99,22 @@ const server = http.createServer(async (req, res) => {
         if (Array.isArray(b.custom) && b.name.trim().toLowerCase() === OWNER) custom = b.custom;
       }
       return json(res, 200, { ok: true, voters, custom, tunings: {}, plan: plan() });
+    }
+
+    if (p === "/api/lyrics") {
+      if (req.method === "POST") {
+        const b = await readBody(req);
+        const seen = new Set(lyricRows.map((r) => r[0]));
+        (b.songs || []).filter((s) => s && s.k && s.name).forEach((s) => {
+          const k = songKey(s.name, s.artist);
+          if (seen.has(k)) return;
+          seen.add(k);
+          // Dev stub only: placeholder text so the book's layout is visible
+          // offline. The real sheet holds whatever the band typed.
+          lyricRows.push([k, s.name, s.artist || "", "(paste " + s.name + " lyrics into the sheet)"]);
+        });
+      }
+      return json(res, 200, { ok: true, lyrics: parseLyrics(lyricRows) });
     }
 
     if (p === "/api/plan") {
@@ -148,5 +165,6 @@ server.listen(PORT, () => {
   console.log("Offline dev server on http://localhost:" + PORT);
   console.log("  vote page:  http://localhost:" + PORT + "/");
   console.log("  setlist:    http://localhost:" + PORT + "/results.html");
+  console.log("  lyrics:     http://localhost:" + PORT + "/lyrics.html");
   console.log("  owner is '" + OWNER + "'; any access code works; nothing reaches the real sheet.");
 });

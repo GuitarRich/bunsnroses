@@ -7,6 +7,8 @@ import {
   parseSetlist,
   parseProgress,
   parseSettings,
+  parseLyrics,
+  LYRICS_HEADERS,
   normLimit,
   TARGET_SONGS,
   PROGRESS_BASE,
@@ -20,6 +22,7 @@ const TUNINGS_TAB = "Tunings";
 const SETLIST_TAB = "Setlist";
 const PROGRESS_TAB = "Progress";
 const SETTINGS_TAB = "Settings";
+const LYRICS_TAB = "Lyrics";
 const SONG_HEADERS = ["Key", "Title", "Artist", "Seconds", "Set", "Energy", "Tags", "Lead"];
 const TUNING_HEADERS = ["Key", "Title", "Artist", "Tuning"];
 const SETLIST_HEADERS = ["Key", "Title", "Artist", "State", "Position"];
@@ -54,7 +57,7 @@ export async function ensureTabs() {
   const id = sheetId();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
   const have = new Set(meta.data.sheets.map((s) => s.properties.title));
-  const wanted = [VOTES_TAB, SONGS_TAB, GRID_TAB, TUNINGS_TAB, SETLIST_TAB, PROGRESS_TAB, SETTINGS_TAB];
+  const wanted = [VOTES_TAB, SONGS_TAB, GRID_TAB, TUNINGS_TAB, SETLIST_TAB, PROGRESS_TAB, SETTINGS_TAB, LYRICS_TAB];
   const missing = wanted.filter((t) => !have.has(t));
   if (missing.length) {
     await sheets.spreadsheets.batchUpdate({
@@ -111,9 +114,17 @@ export async function ensureTabs() {
         requestBody: { values: [SETTINGS_HEADERS, ["Song limit", TARGET_SONGS]] },
       });
     }
+    if (missing.includes(LYRICS_TAB)) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: id,
+        range: `${LYRICS_TAB}!A1:D1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [LYRICS_HEADERS] },
+      });
+    }
   }
   await ensureSongMetaHeaders(sheets, id);
-  return { VOTES_TAB, SONGS_TAB, GRID_TAB, SETLIST_TAB, PROGRESS_TAB };
+  return { VOTES_TAB, SONGS_TAB, GRID_TAB, SETLIST_TAB, PROGRESS_TAB, LYRICS_TAB };
 }
 
 async function ensureSongMetaHeaders(sheets, id) {
@@ -208,6 +219,59 @@ export async function readAll() {
       ...parseSettings(settingsRows),
     },
   };
+}
+
+/**
+ * Read the Lyrics tab. Kept off readAll() on purpose: the words are bulky and
+ * only the lyric book needs them, so the vote/plan poll stays small.
+ *
+ * The sheet is the only source of lyrics. Nothing ships in the repo and nothing
+ * is fetched from a lyrics site — the band types their own words in.
+ */
+export async function readLyrics() {
+  await ensureTabs();
+  const sheets = sheetsClient();
+  const id = sheetId();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: id,
+    range: `${LYRICS_TAB}!A2:D500`,
+  });
+  return parseLyrics(res.data.values || []);
+}
+
+/**
+ * Append a blank row to the Lyrics tab for any song it doesn't know yet, so the
+ * band has a labelled cell to paste into rather than a bare grid. Existing rows
+ * are never touched — same contract as syncTunings.
+ */
+export async function seedLyrics(songs, existing) {
+  await ensureTabs();
+  const sheets = sheetsClient();
+  const id = sheetId();
+  const have = existing || (await readLyrics());
+  const seen = new Set(Object.keys(have));
+  const fresh = [];
+  for (const s of songs || []) {
+    // Keyed on name+artist like the Tunings tab, not the vote key: that's what
+    // the book looks lyrics up by, and it survives a song being re-added.
+    const key = songKey(s.name, s.artist);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    fresh.push([key, s.name || "", s.artist || "", ""]);
+  }
+  if (!fresh.length) return have;
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: id,
+    range: `${LYRICS_TAB}!A2:D2`,
+    valueInputOption: "RAW",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: { values: fresh },
+  });
+  const out = { ...have };
+  fresh.forEach((r) => {
+    out[r[0]] = "";
+  });
+  return out;
 }
 
 /**

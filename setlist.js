@@ -502,6 +502,43 @@ export function tuningFor(map, name, artist) {
   return SEED_TUNINGS[k] || "";
 }
 
+/** Column layout of the Lyrics sheet tab. */
+export const LYRICS_HEADERS = ["Key", "Title", "Artist", "Lyrics"];
+
+/**
+ * Lyrics sheet rows -> { key: text }. The band types the words into the sheet;
+ * nothing ships with the app and nothing is fetched from a lyrics site, so the
+ * sheet is the only source. A row with a blank cell still counts as a row —
+ * same rule as tunings — so a cleared cell reads as "we have no words yet"
+ * rather than falling through to something stale.
+ */
+export function parseLyrics(rows) {
+  const out = {};
+  (rows || []).forEach((r) => {
+    const key = String(r[0] || "").trim() || (r[1] ? songKey(r[1], r[2]) : "");
+    if (!key) return;
+    out[key] = String(r[3] == null ? "" : r[3]);
+  });
+  return out;
+}
+
+/** Text for one song, normalised to \n line breaks. Missing song -> "". */
+export function lyricsFor(map, name, artist) {
+  const v = map && map[songKey(name, artist)];
+  return String(v == null ? "" : v).replace(/\r\n?/g, "\n").trim();
+}
+
+/**
+ * Split lyrics into blocks on blank lines, so a verse can be kept whole across
+ * a page break instead of being cut mid-line.
+ */
+export function lyricBlocks(text) {
+  return String(text || "")
+    .split(/\n\s*\n/)
+    .map((b) => b.replace(/\s+$/, ""))
+    .filter((b) => b.trim().length);
+}
+
 const api = {
   WEIGHTS,
   TARGET_SONGS,
@@ -544,6 +581,10 @@ const api = {
   PROGRESS_BASE,
   TUNING_SEEDS,
   tuningFor,
+  LYRICS_HEADERS,
+  parseLyrics,
+  lyricsFor,
+  lyricBlocks,
 };
 
 if (typeof window !== "undefined") window.Setlist = api;
