@@ -568,8 +568,26 @@ const CHORD_RE = new RegExp(
     "(?:\\/[A-G][#b♯♭]?)?$"
 );
 
-/** Things that share a chord line without being chords: bars, repeats, N.C. */
-const CHORD_FILLER_RE = /^(?:\|+|:\|+|\|+:|x ?\d+|\(x ?\d+\)|[-–—/%.,]+|N\.?C\.?|[()])$/i;
+/**
+ * Things that share a chord line without being chords: bar lines, repeat marks
+ * ("8x" and "x8" are both written), N.C., and beat slashes.
+ */
+const CHORD_FILLER_RE =
+  /^(?:\|+|x ?\d+|\d+ ?x|\(x ?\d+\)|\(\d+ ?x\)|[-–—/%.,]+|N\.?C\.?|[()])$/i;
+
+/**
+ * Split one chord-line token off its bar lines. Tabs are written "|A5 |A5 | 8x"
+ * with nothing between the bar and the chord, so a plain whitespace split hands
+ * back "|A5", which is not a chord symbol and used to sink the whole line back
+ * to being read as words.
+ */
+export function chordParts(tok) {
+  const s = String(tok == null ? "" : tok);
+  const lead = (/^[|:]+/.exec(s) || [""])[0];
+  const trail = (/[|:]+$/.exec(s.slice(lead.length)) || [""])[0];
+  const core = s.slice(lead.length, s.length - trail.length);
+  return { lead, core, trail, chord: CHORD_RE.test(core) };
+}
 
 const SECTION_NAMES =
   "intro|verse|pre[- ]?chorus|chorus|refrain|bridge|middle ?8|instrumental|interlude|" +
@@ -611,9 +629,11 @@ export function isChordLine(line) {
   const t = String(line || "").trim();
   if (!t) return false;
   let chords = 0;
-  for (const tok of t.split(/\s+/)) {
-    if (CHORD_RE.test(tok)) { chords++; continue; }
-    if (CHORD_FILLER_RE.test(tok)) continue;
+  for (const raw of t.split(/\s+/)) {
+    const { core, chord } = chordParts(raw);
+    if (chord) { chords++; continue; }
+    if (!core) continue;                       // a bar line on its own
+    if (CHORD_FILLER_RE.test(core)) continue;
     return false;
   }
   return chords > 0;
@@ -733,6 +753,7 @@ const api = {
   lyricBlocks,
   isSectionLine,
   isChord,
+  chordParts,
   isChordLine,
   expandChordPro,
   lyricLines,

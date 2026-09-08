@@ -29,6 +29,7 @@ import {
   lyricsFor,
   lyricBlocks,
   isChordLine,
+  chordParts,
   isSectionLine,
   expandChordPro,
   lyricLines,
@@ -470,6 +471,25 @@ describe("chords", () => {
     assert.equal(isChordLine("| Am | F | C | G  x2"), true);
     assert.equal(isChordLine("N.C."), false);   // no real chord on the line
     assert.equal(isChordLine("| | |"), false);
+  });
+
+  it("reads a riff written in bars, with the chord glued to the bar line", () => {
+    assert.equal(isChordLine("|A5 |A5 | 8x"), true);
+    assert.equal(isChordLine("|D Dsus4 D |D |D Dsus4 D |Dsus4 D |"), true);
+    assert.equal(isChordLine("|E5 |E5 | 2x"), true);
+    assert.equal(isChordLine("|A5 |A5 | x8"), true);
+    // and it still knows words when it sees them
+    assert.equal(isChordLine("See it on television, every day"), false);
+  });
+
+  it("splits a bar line off the chord so only the chord is tappable", () => {
+    assert.deepEqual(chordParts("|A5"), { lead: "|", core: "A5", trail: "", chord: true });
+    assert.deepEqual(chordParts("|A5|"), { lead: "|", core: "A5", trail: "|", chord: true });
+    assert.deepEqual(chordParts("Dsus4"), { lead: "", core: "Dsus4", trail: "", chord: true });
+    assert.equal(chordParts("|").chord, false);
+    assert.equal(chordParts("|").core, "");
+    assert.equal(chordParts("8x").chord, false);
+    assert.equal(chordParts("").chord, false);
   });
 
   it("tells a section label from a chord in brackets", () => {

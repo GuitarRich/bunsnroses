@@ -251,7 +251,7 @@ import { VERSION } from "./catalog.js";
 import {
   TARGET_SONGS, MAX_PER_ARTIST,
   scoreSongs, generateSet, mmss, tuningFor, lyricsFor, lyricBlocks, searchLinks,
-  lyricLines, hasChords, isChord,
+  lyricLines, hasChords, chordParts,
 } from "./setlist.js";
 import { chordShape, stringsFor } from "./chords.js";
 import { S, pull } from "./store.js";
@@ -306,13 +306,18 @@ function heading(r, i) {
  * Every chord on a chord row becomes its own tappable chip. Whitespace between
  * the tokens is passed through untouched — it is what holds a chord over its
  * syllable — and the tokens themselves are escaped like everything else.
+ *
+ * Bar lines stay outside the chip: a riff written "|A5 |A5 | 8x" should offer
+ * the A5, not the bar glued to it.
  */
 function chips(line) {
-  return String(line).replace(/\S+/g, (tok) =>
-    isChord(tok)
-      ? '<button class="chip" type="button" aria-expanded="false" data-chord="' +
-        esc(tok) + '">' + esc(tok) + '</button>'
-      : esc(tok));
+  return String(line).replace(/\S+/g, (tok) => {
+    const p = chordParts(tok);
+    if (!p.chord) return esc(tok);
+    return esc(p.lead) +
+      '<button class="chip" type="button" aria-expanded="false" data-chord="' +
+      esc(p.core) + '">' + esc(p.core) + '</button>' + esc(p.trail);
+  });
 }
 
 /**
