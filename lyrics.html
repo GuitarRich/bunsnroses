@@ -11,16 +11,31 @@
 #lb{background:var(--stage);color:var(--cream);font-family:'Barlow',system-ui,sans-serif;
   min-height:100vh;padding-bottom:var(--s6);font-size:16px;line-height:1.5}
 #lb .wrap{max-width:820px;margin:0 auto;padding:0 var(--s4)}
+/* The header is shared chrome, so it lines up with the other two pages rather
+   than with the book column — the logo shouldn't shift when you navigate. The
+   narrow column below is a reading measure for the words themselves. */
+#lb header .wrap{max-width:1240px}
 #lb .disp{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.04em;line-height:1}
 #lb .mono{font-family:'IBM Plex Mono',monospace}
 #lb .hide{display:none!important}
 #lb button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 
+/* Same header as the vote and setlist pages: a full-bleed bar with the amber
+   line under it, not a panel boxed inside the reading column. */
 #lb header{border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--panel2),var(--panel));
-  padding:var(--s4) 0 var(--s3);margin-bottom:var(--s4)}
-#lb .plate{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap}
-#lb h1{font-size:30px;font-weight:700;flex:1;line-height:1;font-family:'Barlow Condensed',sans-serif;
+  padding:var(--s4) 0 var(--s3);margin-bottom:var(--s4);position:relative}
+#lb header:after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--lamp),transparent);opacity:.5}
+#lb .plate{display:flex;align-items:center;gap:var(--s3)}
+#lb .lamp{width:17px;height:17px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 35% 30%,#FFD98A,var(--lamp) 55%,#8A5A0B);box-shadow:0 0 16px rgba(245,166,35,.7)}
+#lb h1{font-size:32px;font-weight:700;flex:1;line-height:1;font-family:'Barlow Condensed',sans-serif;
   text-transform:uppercase;letter-spacing:.04em}
+#lb .status{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
+  font-family:'Barlow Condensed',sans-serif;padding:7px 12px;border:1px solid var(--line);border-radius:99px;
+  color:var(--dim);white-space:nowrap}
+#lb .status.ok{color:var(--ok);border-color:rgba(127,166,80,.45)}
+#lb .status.warn{color:var(--lamp);border-color:rgba(245,166,35,.45)}
 #lb h1 small{display:block;font-size:11px;letter-spacing:.28em;color:var(--dim);font-weight:600;margin-top:8px}
 #lb h1 small span{color:var(--lamp)}
 
@@ -88,7 +103,7 @@
 
 @media (max-width:640px){
   #lb .toc{columns:1}
-  #lb h1{font-size:24px}
+  #lb h1{font-size:26px}
   #lb .wrap{padding:0 var(--s3)}
 
   /* Four buttons of four different widths wrapped into a ragged block. An
@@ -116,9 +131,11 @@
 @media print{
   @page{margin:14mm 15mm}
   #lb{background:#fff;color:#000;min-height:0;padding:0;font-size:11.5pt}
-  #lb .wrap{max-width:none;padding:0}
+  #lb .wrap,#lb header .wrap{max-width:none;padding:0}
   #lb .noprint{display:none!important}
   #lb header{background:none;border:none;padding:0;margin:0 0 8mm}
+  #lb header:after{display:none}
+  #lb .status{display:none}
   #lb h1{color:#000;font-size:20pt}
   #lb h1 small{color:#444}
   #lb h1 small span{color:#000}
@@ -139,19 +156,20 @@
 </style>
 
 <div id="lb">
-  <div class="wrap">
-    <header>
+  <header><div class="wrap">
       <div class="plate">
-        <span class="lamp" style="width:17px;height:17px;border-radius:50%;flex:none;
-          background:radial-gradient(circle at 35% 30%,#FFD98A,#F5A623 55%,#8A5A0B)"></span>
+        <div class="lamp"></div>
         <h1>Bun's &amp; Roses<small>Lyric book &middot; <span id="ver"></span></small></h1>
+        <div class="status" id="status">Checking</div>
       </div>
       <nav class="noprint">
         <a href="./index.html">Vote</a>
         <a href="./results.html">Setlist</a>
         <a href="./lyrics.html" aria-current="page">Lyrics</a>
       </nav>
-    </header>
+  </div></header>
+
+  <div class="wrap">
 
     <!-- gate: only shown when we don't already have a name + code stored -->
     <div id="gate" class="hide">
@@ -196,6 +214,17 @@ $("ver").textContent = VERSION;
 
 let LYRICS = {};
 const editing = {};   // song key -> paste box is open
+let ok = null;        // null = still checking, true/false = last call's result
+let busy = false;
+
+/** Same three states the vote and setlist pages show, same wording. */
+function setStatus() {
+  const el = $("status");
+  if (busy) { el.textContent = "Saving"; el.className = "status"; return; }
+  if (ok === null) { el.textContent = "Checking"; el.className = "status"; return; }
+  el.textContent = ok ? "Saved" : "Not saving";
+  el.className = ok ? "status ok" : "status warn";
+}
 
 function say(html, fail) {
   const el = $("msg");
@@ -313,6 +342,8 @@ function editor(r, words) {
   save.onclick = async () => {
     save.disabled = true;
     save.textContent = "Saving";
+    busy = true;
+    setStatus();
     try {
       const res = await fetch("/api/lyrics", {
         method: "POST",
@@ -326,11 +357,16 @@ function editor(r, words) {
       if (!res.ok || !d.ok) throw new Error(d.error || "HTTP " + res.status);
       LYRICS = d.lyrics || {};
       delete editing[r.k];
+      ok = true;
       draw();
     } catch (e) {
       save.disabled = false;
       save.textContent = "Save lyrics";
+      ok = false;
       say("<b>Couldn't save.</b> " + esc(e.message || e), true);
+    } finally {
+      busy = false;
+      setStatus();
     }
   };
   bar.appendChild(save);
@@ -387,13 +423,16 @@ $("seed").onclick = async () => {
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || "HTTP " + r.status);
     LYRICS = d.lyrics || {};
+    ok = true;
     draw();
     say("<b>Sheet updated.</b> Every song in the set now has a row in the Lyrics tab — paste the words in there.");
   } catch (e) {
+    ok = false;
     say("<b>Couldn't reach the sheet.</b> " + esc(e.message || e), true);
   } finally {
     btn.disabled = false;
     btn.textContent = "Add blank rows to the sheet";
+    setStatus();
   }
 };
 
@@ -411,13 +450,18 @@ async function boot() {
   if (!okVotes) say("<b>Couldn't load the set" + (S.lastErr ? " — " + esc(S.lastErr) : "") + ".</b>", true);
   S.pool[S.me] = S.myVotes;
 
+  let okLyrics = false;
   try {
     const r = await fetch("/api/lyrics", { cache: "no-store" });
     const d = await r.json();
-    if (r.ok && d.ok) LYRICS = d.lyrics || {};
+    if (!r.ok || !d.ok) throw new Error(d.error || "HTTP " + r.status);
+    LYRICS = d.lyrics || {};
+    okLyrics = true;
   } catch (e) {
     say("<b>Couldn't load the lyrics" + " — " + esc(e.message || e) + ".</b>", true);
   }
+  ok = okVotes && okLyrics;
+  setStatus();
 
   draw();
 }

@@ -70,11 +70,12 @@ export const TRACKS=[
 
 export const BAND = ["Rich", "Joel", "Anders", "Pete"];
 export const OWNER = "Rich";            // only this person edits songs and the setlist
-export const VERSION = "v24";
+export const VERSION = "v25";
 export const LABEL = { 3: "Must play", 2: "Yes", 1: "Maybe", 0: "Pass" };
 export const NB = TRACKS.length;        // built-in count (code positions never change)
 
 export const CHANGES = {
+ "v25":"Lyric book header now matches the other two pages exactly — full-width bar, lit lamp, and a real saved indicator",
  "v24":"Actually usable on a phone — the pages were missing the viewport tag, so mobiles were shrinking the desktop layout to fit. Lyric book laid out for a phone too",
  "v23":"Set rows fixed on a phone — one line each, score and chevron back in place, and the dead drag handle gone",
  "v22":"Song titles, artists, tunings and names are escaped before they hit the page, so nothing typed into the sheet can run as code",
