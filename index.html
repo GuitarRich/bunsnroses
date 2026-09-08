@@ -4,14 +4,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link href="./app.css" rel="stylesheet">
 
-<div id="sv">
-  <header><div class="wrap plate">
+<div id="sv" class="stage-page">
+  <header><div class="wrap">
+      <div class="plate">
     <div class="lamp"></div>
     <h1 class="disp">Bun's &amp; Roses<small>Setlist Vote &middot; <span id="ver"></span></small></h1>
     <div class="status" id="status">Checking</div>
+      </div>
+      <nav>
+        <a href="./index.html" aria-current="page">Vote</a>
+        <a href="./results.html">Setlist</a>
+        <a href="./lyrics.html">Lyrics</a>
+      </nav>
   </div></header>
 
-  <div class="wrap">
+  <div class="wrap stage">
     <div id="banner" class="banner hide"></div>
 
     <div id="gate" class="gate">
@@ -30,26 +37,37 @@
     <div id="vote" class="hide">
       <div class="bar"><i id="pbar" style="width:0"></i></div>
       <div class="prog"><span id="pcount" class="mono"></span><span id="pleft" class="mono"></span></div>
-      <div class="track" id="tcard">
-        <div class="tnum mono"><span id="tnum"></span><b id="tvote"></b></div>
-        <div class="tname disp" id="tname"></div>
-        <div class="tart" id="tart"></div>
-        <div class="tmeta mono"><span id="tdur"></span><span id="tyear"></span><span id="tbpm"></span><span id="tera"></span><span id="ttune"></span></div>
-      </div>
-      <div class="votes" id="votes">
-        <button data-v="3"><b>Must play</b><span>Fight me on it</span></button>
-        <button data-v="2"><b>Yes</b><span>Happy to play it</span></button>
-        <button data-v="1"><b>Maybe</b><span>If it fits</span></button>
-        <button data-v="0"><b>Pass</b><span>Leave it off &mdash; outweighs two Yes votes</span></button>
-      </div>
-      <div class="steps">
-        <button id="prev">&larr; Previous</button>
-        <button id="next">Skip &rarr;</button>
-      </div>
-      <div class="util">
-        <button id="jump">Next unscored</button>
-        <button id="clearv">Clear this vote</button>
-        <a class="btn ghost" href="./results.html" style="text-decoration:none;padding:8px 12px">Setlist &amp; standings &rarr;</a>
+      <div class="floor">
+        <div class="main">
+          <div class="deck">
+            <div class="track" id="tcard">
+              <div class="tnum mono"><span id="tnum"></span><b id="tvote"></b></div>
+              <div class="tname disp" id="tname"></div>
+              <div class="tart" id="tart"></div>
+              <div class="tmeta mono"><span id="tdur"></span><span id="tyear"></span><span id="tbpm"></span><span id="tera"></span><span id="ttune"></span></div>
+            </div>
+            <div class="pad">
+              <div class="votes" id="votes">
+                <button data-v="3"><b>Must play</b><span>Fight me on it</span></button>
+                <button data-v="2"><b>Yes</b><span>Happy to play it</span></button>
+                <button data-v="1"><b>Maybe</b><span>If it fits</span></button>
+                <button data-v="0"><b>Pass</b><span>Leave it off &mdash; outweighs two Yes votes</span></button>
+              </div>
+              <div class="steps">
+                <button id="prev">&larr; Previous</button>
+                <button id="next">Skip &rarr;</button>
+              </div>
+            </div>
+          </div>
+          <div class="util">
+            <button id="jump">Next unscored</button>
+            <button id="clearv">Clear this vote</button>
+          </div>
+        </div>
+        <aside class="rail">
+          <div class="railhead">Track list <b id="railDone"></b></div>
+          <div class="raillist" id="raillist"></div>
+        </aside>
       </div>
     </div>
   </div>
@@ -166,6 +184,32 @@ function render() {
   $("next").textContent = (v === undefined ? "Skip" : "Next") + " →";
   $("clearv").disabled = v === undefined;
   $("jump").disabled = firstUnscored() < 0;
+  drawRail(done, N);
+}
+
+/**
+ * The track list beside the card. A desktop has the room, and seeing what's
+ * scored is the thing the one-song-at-a-time view can't show you. Rows are
+ * rebuilt each render rather than patched — 63 of them is nothing.
+ */
+function drawRail(done, N) {
+  const list = $("raillist");
+  if (!list) return;
+  $("railDone").textContent = done + "/" + N;
+  list.innerHTML = "";
+  S.list.forEach((t, i) => {
+    const v = S.myVotes[t.k];
+    const row = document.createElement("button");
+    row.className = "railrow" + (i === idx ? " on" : "");
+    row.innerHTML = '<span class="n">' + String(i + 1).padStart(2, "0") + '</span>' +
+      '<span class="t">' + t.name + '<span class="a"> — ' + t.artist + '</span></span>' +
+      '<span class="v' + (v === undefined ? "" : " v" + v) + '"></span>';
+    row.title = t.name + " — " + t.artist + (v === undefined ? "" : "  ·  " + LABEL[v]);
+    row.onclick = () => { idx = i; render(); };
+    list.appendChild(row);
+  });
+  const on = list.querySelector(".railrow.on");
+  if (on) on.scrollIntoView({ block: "nearest" });
 }
 
 $("votes").querySelectorAll("button").forEach((b) => {

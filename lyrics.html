@@ -24,6 +24,14 @@
 #lb h1 small{display:block;font-size:11px;letter-spacing:.28em;color:var(--dim);font-weight:600;margin-top:8px}
 #lb h1 small span{color:var(--lamp)}
 
+#lb nav{display:flex;gap:2px;margin-top:var(--s3);flex-wrap:wrap}
+#lb nav a{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.16em;
+  font-size:12px;font-weight:600;color:var(--dim);text-decoration:none;padding:9px 14px;border-radius:var(--r);
+  border:1px solid transparent;transition:color .12s,background .12s,border-color .12s}
+#lb nav a:hover{color:var(--cream);background:rgba(237,230,214,.05)}
+#lb nav a[aria-current="page"]{color:var(--lamp);border-color:rgba(245,166,35,.4);
+  background:rgba(245,166,35,.08)}
+
 #lb .bar{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center;margin-bottom:var(--s4)}
 #lb .btn{border:1px solid var(--line);border-radius:var(--r);padding:9px 15px;font-size:13px;font-weight:600;
   background:var(--panel2);color:var(--cream)}
@@ -117,6 +125,11 @@
           background:radial-gradient(circle at 35% 30%,#FFD98A,#F5A623 55%,#8A5A0B)"></span>
         <h1>Bun's &amp; Roses<small>Lyric book &middot; <span id="ver"></span></small></h1>
       </div>
+      <nav class="noprint">
+        <a href="./index.html">Vote</a>
+        <a href="./results.html">Setlist</a>
+        <a href="./lyrics.html" aria-current="page">Lyrics</a>
+      </nav>
     </header>
 
     <!-- gate: only shown when we don't already have a name + code stored -->

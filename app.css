@@ -12,7 +12,7 @@
 
 #sv{background:var(--stage);color:var(--cream);font-family:'Barlow',system-ui,sans-serif;
   min-height:100vh;padding:0 0 var(--s6);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5}
-#sv .wrap{max-width:880px;margin:0 auto;padding:0 var(--s4)}
+#sv .wrap{max-width:1240px;margin:0 auto;padding:0 var(--s4)}
 #sv .disp{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.04em;line-height:1}
 #sv .mono{font-family:'IBM Plex Mono',monospace}
 #sv button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
@@ -32,6 +32,42 @@
 #sv h1{font-size:32px;font-weight:700;flex:1;line-height:1}
 #sv h1 small{display:block;font-size:11px;letter-spacing:.28em;color:var(--dim);font-weight:600;margin-top:8px}
 #sv h1 small span{color:var(--lamp)}
+
+/* Wide screens put the readiness panel beside the set rather than above it,
+   so the set itself starts at the top of the page. */
+#sv .split{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:var(--s4);align-items:start}
+#sv .splitside .crew{margin:0;position:sticky;top:var(--s3)}
+#sv .splitmain{min-width:0}
+@media (max-width:1100px){
+  #sv .split{grid-template-columns:1fr}
+  #sv .splitside{order:-1}
+  #sv .splitside .crew{position:static}
+}
+
+/* ---------- tabs: results.html does four jobs, one screen each ---------- */
+#sv .tabs{display:flex;gap:var(--s1);margin-bottom:var(--s4);border-bottom:1px solid var(--line);
+  flex-wrap:wrap}
+#sv .tabs button{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.14em;
+  font-size:13px;font-weight:600;color:var(--dim);padding:12px 18px;border-bottom:2px solid transparent;
+  margin-bottom:-1px;transition:color .12s,border-color .12s}
+#sv .tabs button:hover{color:var(--cream)}
+#sv .tabs button[aria-selected="true"]{color:var(--lamp);border-bottom-color:var(--lamp)}
+#sv .tabs .count{color:var(--faint);font-size:11px;margin-left:6px}
+#sv .tabs button[aria-selected="true"] .count{color:var(--lamp);opacity:.7}
+#sv .tabpanel[hidden]{display:none}
+
+/* ---------- nav: the same three places on every page ---------- */
+#sv nav{display:flex;gap:2px;margin-top:var(--s3);flex-wrap:wrap}
+#sv nav a{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.16em;
+  font-size:12px;font-weight:600;color:var(--dim);text-decoration:none;padding:9px 14px;border-radius:var(--r);
+  border:1px solid transparent;transition:color .12s,background .12s,border-color .12s}
+#sv nav a:hover{color:var(--cream);background:rgba(237,230,214,.05)}
+/* The page you're on is stated, not just implied by what isn't clickable. */
+#sv nav a[aria-current="page"]{color:var(--lamp);border-color:rgba(245,166,35,.4);
+  background:rgba(245,166,35,.08)}
+@media (max-width:560px){
+  #sv nav a{padding:8px 10px;letter-spacing:.1em}
+}
 
 #sv .status{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
   font-family:'Barlow Condensed',sans-serif;padding:7px 12px;border:1px solid var(--line);border-radius:99px;
@@ -73,6 +109,80 @@
 #sv .tart{font-size:19px;color:var(--lamp);font-weight:500;margin-bottom:var(--s4)}
 #sv .tmeta{display:flex;gap:var(--s3);font-size:13px;color:var(--dim);border-top:1px solid var(--line2);
   padding-top:var(--s3);flex-wrap:wrap}
+
+/* Voting is a single-focus screen: one song, four choices. Rather than let it
+   sit in the top third of a desktop with dead stage under it, the page is a
+   full-height column and the deck takes the slack. No fixed offsets, so a
+   banner appearing above it just shrinks the slack instead of causing a
+   scrollbar. */
+/* A real height, not min-height: the rail can only scroll inside itself if
+   something above it actually bounds the column. */
+#sv.stage-page{height:100vh;display:flex;flex-direction:column;padding-bottom:0}
+#sv.stage-page > header{flex:none}
+#sv.stage-page > .stage{flex:1;display:flex;flex-direction:column;min-height:0;padding-bottom:var(--s4)}
+#sv #vote{flex:1;display:flex;flex-direction:column;gap:var(--s3);min-height:0}
+
+/* A desktop has room for the whole track list beside the card. That's what
+   fills the space — stretching the card and buttons to fit just made bigger
+   empty boxes. The rail scrolls internally so the page itself never does. */
+#sv .floor{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:var(--s4);
+  align-items:stretch;min-height:0}
+/* Top-aligned, so the card starts on the same line as the rail. Centred, it
+   floated in the middle of the column with empty space above and below. */
+#sv .floor .main{display:flex;flex-direction:column;gap:var(--s3);min-width:0}
+#sv .rail{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#sv .railhead{padding:var(--s3);border-bottom:1px solid var(--line);display:flex;align-items:baseline;
+  gap:var(--s2);font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.14em;
+  font-size:12px;font-weight:600;color:var(--dim);flex:none}
+#sv .railhead b{color:var(--lamp);font-size:13px}
+#sv .raillist{flex:1;min-height:0;overflow-y:auto;padding:var(--s1);scrollbar-width:thin}
+#sv .railrow{display:flex;align-items:center;gap:var(--s2);width:100%;text-align:left;
+  padding:8px var(--s2);border-radius:var(--r);border:1px solid transparent;line-height:1.25}
+#sv .railrow:hover{background:var(--panel2)}
+#sv .railrow.on{background:var(--panel2);border-color:var(--lamp)}
+#sv .railrow .n{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint);flex:none;width:22px}
+#sv .railrow .t{flex:1;min-width:0;font-size:13px;color:var(--cream);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+#sv .railrow .a{font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#sv .railrow.on .t{color:var(--lamp)}
+/* Vote shown as a dot so the column reads as a progress map at a glance. */
+#sv .railrow .v{flex:none;width:9px;height:9px;border-radius:50%;background:var(--panel3);
+  border:1px solid var(--line)}
+#sv .railrow .v.v3{background:var(--hot);border-color:var(--hot)}
+#sv .railrow .v.v2{background:var(--ok);border-color:var(--ok)}
+#sv .railrow .v.v1{background:var(--lamp);border-color:var(--lamp)}
+#sv .railrow .v.v0{background:transparent;border-color:var(--faint)}
+@media (max-width:1100px){
+  #sv .floor{grid-template-columns:1fr}
+  #sv .rail{display:none}
+}
+/* Below the desktop layout the page goes back to scrolling normally. */
+@media (max-width:900px){
+  #sv.stage-page{height:auto;display:block;padding-bottom:var(--s6)}
+}
+
+#sv #vote .bar{margin:0}
+#sv #vote .util{margin-top:var(--s3)}
+@media (max-width:900px){
+  #sv.stage-page{display:block;min-height:0}
+  #sv #vote{display:block;min-height:0}
+}
+
+/* The card and the buttons sit side by side on a desktop; stacked, they left
+   the lower half of the screen empty. */
+#sv .deck{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:var(--s4);align-items:stretch}
+#sv .deck .track{margin:0;height:100%;display:flex;flex-direction:column;justify-content:center}
+@media (min-width:901px){
+  #sv .deck .tname{font-size:clamp(34px,3.4vw,52px)}
+  #sv .deck .tart{font-size:20px}
+}
+#sv .deck .pad{display:flex;flex-direction:column;gap:var(--s2)}
+#sv .deck .votes{flex:1;align-content:stretch}
+#sv .deck .steps{margin-top:0}
+@media (max-width:900px){
+  #sv .deck{grid-template-columns:1fr}
+}
 
 #sv .votes{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
 #sv .votes button{padding:18px 15px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
@@ -125,6 +235,9 @@
   letter-spacing:.1em;margin-bottom:var(--s4);gap:var(--s2)}
 
 #sv .merge{margin-top:var(--s6);border-top:1px solid var(--line);padding-top:var(--s4)}
+/* First block in a tab panel: the rule and gap belong between sections, not
+   under the tab bar. */
+#sv .merge.nogap{margin-top:0;border-top:none;padding-top:0}
 #sv .merge h4{font-size:21px;font-weight:600;margin-bottom:var(--s2);font-family:'Barlow Condensed',sans-serif;
   text-transform:uppercase;letter-spacing:.05em}
 #sv .merge textarea{margin:var(--s3) 0;font-size:13px;font-family:'IBM Plex Mono',monospace}
@@ -194,6 +307,13 @@
 #sv .rk{font-size:15px;color:var(--faint);width:30px;flex:none;font-weight:600;padding-top:2px;
   font-family:'IBM Plex Mono',monospace}
 #sv .setrow .rk{font-size:20px;color:var(--lamp)}
+/* Collapsed-row affordances: your status as a dot, and a chevron. */
+#sv .rdot{width:9px;height:9px;border-radius:50%;flex:none;align-self:center;background:var(--panel3);
+  border:1px solid var(--line)}
+#sv .rdot.know-it{background:var(--ok);border-color:var(--ok)}
+#sv .rdot.in-progress{background:var(--lamp);border-color:var(--lamp)}
+#sv .rchev{flex:none;align-self:center;color:var(--faint);font-size:9px;width:14px;text-align:center}
+#sv .setrow:hover .rchev{color:var(--lamp)}
 #sv .rt{flex:1;min-width:0}
 #sv .rt b{display:block;font-size:16px;font-weight:600;line-height:1.35;margin-bottom:3px}
 #sv .setrow .rt b{font-size:19px}

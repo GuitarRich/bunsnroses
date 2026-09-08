@@ -5,10 +5,17 @@
 <link href="./app.css" rel="stylesheet">
 
 <div id="sv">
-  <header><div class="wrap plate">
+  <header><div class="wrap">
+      <div class="plate">
     <div class="lamp"></div>
     <h1 class="disp">Bun's &amp; Roses<small>Setlist &amp; Standings &middot; <span id="ver"></span></small></h1>
     <div class="status" id="status">Checking</div>
+      </div>
+      <nav>
+        <a href="./index.html">Vote</a>
+        <a href="./results.html" aria-current="page">Setlist</a>
+        <a href="./lyrics.html">Lyrics</a>
+      </nav>
   </div></header>
 
   <div class="wrap">
@@ -28,21 +35,33 @@
 
     <div id="main" class="hide">
       <div class="sub">
-        <a href="./index.html">&larr; Back to voting</a>
         <span id="whoami"></span>
       </div>
       <div class="voters mono" id="voters"></div>
 
-      <div id="crewBox"></div>
-      <div id="setBox"></div>
-
-      <div class="actions">
-        <button class="btn" id="copySet">Copy setlist</button>
-        <button class="btn" id="copyRaw">Copy all votes (CSV)</button>
-        <a class="btn" href="./lyrics.html">Lyric book</a>
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tabSet" aria-selected="true" aria-controls="panelSet">The set</button>
+        <button role="tab" id="tabPool" aria-selected="false" aria-controls="panelPool">Ranking<span class="count" id="poolCount"></span></button>
+        <button role="tab" id="tabAdmin" aria-selected="false" aria-controls="panelAdmin">Admin</button>
       </div>
 
-      <div class="merge" id="poolPanel">
+      <div class="tabpanel" id="panelSet" role="tabpanel" aria-labelledby="tabSet">
+        <div class="split">
+          <div class="splitmain">
+            <div id="setBox"></div>
+            <div class="actions">
+              <button class="btn" id="copySet">Copy setlist</button>
+              <a class="btn" href="./lyrics.html">Lyric book</a>
+            </div>
+          </div>
+          <aside class="splitside">
+            <div id="crewBox"></div>
+          </aside>
+        </div>
+      </div>
+
+      <div class="tabpanel" id="panelPool" role="tabpanel" aria-labelledby="tabPool" hidden>
+      <div class="merge nogap" id="poolPanel">
         <h4 class="disp">Ranking &mdash; every song</h4>
         <p class="note" id="poolNote">Everything the band scored, best first. Songs below the line missed the cut &mdash; the reason is tagged on the row.</p>
         <div class="searchrow"><input id="poolFind" placeholder="Filter by song or artist" autocomplete="off"></div>
@@ -50,7 +69,10 @@
         <div id="poolList"></div>
       </div>
 
-      <div class="merge" id="addPanel">
+      </div>
+
+      <div class="tabpanel" id="panelAdmin" role="tabpanel" aria-labelledby="tabAdmin" hidden>
+      <div class="merge nogap" id="addPanel">
         <h4 class="disp" id="addHead">Add a song</h4>
         <p class="note" id="addNote"></p>
         <div id="addForm">
@@ -111,6 +133,11 @@
           <button class="btn ghost" id="copyDiag">Copy report</button>
         </div>
         <pre id="diagOut" class="diag"></pre>
+      </div>
+
+        <div class="actions">
+          <button class="btn ghost" id="copyRaw">Copy all votes (CSV)</button>
+        </div>
       </div>
     </div>
   </div>
@@ -188,7 +215,29 @@ async function begin() {
   await pull();
   S.pool[S.me] = S.myVotes;
   draw();
+  // Come back to the tab you were last on rather than always the set.
+  let last = "";
+  try { last = localStorage.getItem("br_tab") || ""; } catch (e) {}
+  showTab(TABS.some((t) => t.tab === last) ? last : "tabSet");
 }
+
+/* ---------- tabs ---------- */
+const TABS = [
+  { tab: "tabSet", panel: "panelSet" },
+  { tab: "tabPool", panel: "panelPool" },
+  { tab: "tabAdmin", panel: "panelAdmin" },
+];
+
+function showTab(id) {
+  TABS.forEach((t) => {
+    const on = t.tab === id;
+    $(t.tab).setAttribute("aria-selected", on ? "true" : "false");
+    $(t.panel).hidden = !on;
+  });
+  try { localStorage.setItem("br_tab", id); } catch (e) {}
+  window.scrollTo(0, 0);
+}
+TABS.forEach((t) => { $(t.tab).onclick = () => showTab(t.tab); });
 
 /* ---------- setlist plan ---------- */
 const stateOf = (k) => S.plan.states[k] || "";
@@ -510,6 +559,11 @@ function drawSet(gen) {
     row.dataset.k = r.k;
     if (owner) row.draggable = true;
 
+    // Collapsed, a row is one line. The links and the status controls only
+    // render for the open row — rendering all of them for every song is what
+    // made this list fifteen screens long.
+    const open = openRow === r.k;
+    const mine = statusOf(S.plan.progress, r.k, S.me);
     row.innerHTML =
       (owner ? '<div class="handle" title="Drag to reorder">:::</div>' +
         '<div class="arrows">' +
@@ -520,16 +574,23 @@ function drawSet(gen) {
       '<div class="rt"><b>' + r.name + songTags(r) +
         (tuneOf(r) ? '<span class="tag tune">' + tuneOf(r) + '</span>' : "") + '</b>' +
       '<span>' + r.artist + (r.lead ? " · " + r.lead : "") + ' · ' + mmss(r.dur) + ' · ' + eraLabel(r) + '</span>' +
-      linkRow(r) +
-      '<div class="rowmeta"><span class="metalbl">You</span></div>' +
-      '<div class="rowmeta"><span class="metalbl">Band</span>' + crewChips(r.k) + '</div>' +
-      (owner ? '<div class="rowmeta"><span class="metalbl">Set</span></div>' : "") +
+      (open
+        ? linkRow(r) +
+          '<div class="rowmeta"><span class="metalbl">You</span></div>' +
+          '<div class="rowmeta"><span class="metalbl">Band</span>' + crewChips(r.k) + '</div>' +
+          (owner ? '<div class="rowmeta"><span class="metalbl">Set</span></div>' : "")
+        : "") +
       '</div>' +
-      '<div class="rs mono">' + r.sum + '</div>';
+      // Collapsed rows still say where you are on the song, as a dot.
+      (open ? "" : '<div class="rdot ' + mine + '" title="' + SHORT[mine] + '"></div>') +
+      '<div class="rs mono">' + r.sum + '</div>' +
+      '<div class="rchev">' + (open ? "&#9650;" : "&#9660;") + '</div>';
 
-    const metaRows = row.querySelectorAll(".rowmeta");
-    metaRows[0].appendChild(statusButtons(r.k));
-    if (owner) metaRows[2].appendChild(inOutButtons(r));
+    if (open) {
+      const metaRows = row.querySelectorAll(".rowmeta");
+      metaRows[0].appendChild(statusButtons(r.k));
+      if (owner) metaRows[2].appendChild(inOutButtons(r));
+    }
 
     row.querySelectorAll(".arrows button").forEach((btn) => {
       btn.onclick = (e) => { e.stopPropagation(); reorder(k, k + +btn.dataset.dir); };
@@ -565,6 +626,7 @@ function drawPool(gen) {
   $("poolLegend").innerHTML = who.map((n) => '<i>' + n + '</i>').join("") + '<i class="pad"></i>';
   const list = $("poolList");
   list.innerHTML = "";
+  $("poolCount").textContent = S.list.length;
   if (!gen.ok) { list.innerHTML = '<p class="empty">' + gen.error + '</p>'; return; }
 
   const f = poolFilter.trim().toLowerCase();
