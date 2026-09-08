@@ -75,7 +75,7 @@
 
 <script type="module">
 import { VERSION, CHANGES, LABEL } from "./catalog.js";
-import { TARGET_SONGS, MAX_PER_ARTIST, eraLabel, tuningFor, mmss } from "./setlist.js";
+import { TARGET_SONGS, MAX_PER_ARTIST, eraLabel, tuningFor, mmss, esc } from "./setlist.js";
 import { S, BAND, onStatus, pull, persist, relist } from "./store.js";
 
 const $ = (id) => document.getElementById(id);
@@ -168,7 +168,7 @@ function render() {
   $("tnum").textContent = "Track " + (idx + 1) + " of " + N;
   $("tvote").textContent = v === undefined ? "Not scored" : "Your vote: " + LABEL[v];
   $("tcard").classList.toggle("unscored", v === undefined);
-  $("tname").innerHTML = t.name + (t.added ? '<span class="tag">Added</span>' : "");
+  $("tname").innerHTML = esc(t.name) + (t.added ? '<span class="tag">Added</span>' : "");
   $("tart").textContent = t.artist;
   $("tdur").textContent = mmss(t.dur);
   $("tyear").textContent = t.year || "";
@@ -202,7 +202,7 @@ function drawRail(done, N) {
     const row = document.createElement("button");
     row.className = "railrow" + (i === idx ? " on" : "");
     row.innerHTML = '<span class="n">' + String(i + 1).padStart(2, "0") + '</span>' +
-      '<span class="t">' + t.name + '<span class="a"> — ' + t.artist + '</span></span>' +
+      '<span class="t">' + esc(t.name) + '<span class="a"> — ' + esc(t.artist) + '</span></span>' +
       '<span class="v' + (v === undefined ? "" : " v" + v) + '"></span>';
     row.title = t.name + " — " + t.artist + (v === undefined ? "" : "  ·  " + LABEL[v]);
     row.onclick = () => { idx = i; render(); };

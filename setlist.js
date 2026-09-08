@@ -349,6 +349,17 @@ export function moveKey(keys, from, to) {
   return next;
 }
 
+/**
+ * Escape text for interpolation into innerHTML. Song titles, artists, tunings
+ * and member names all reach the pages from the sheet — anyone who can add a
+ * song or edit a tab can otherwise put markup on everyone else's screen.
+ */
+export function esc(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
 /** Identity key shared by the pages and the Tunings sheet tab. */
 export function songKey(name, artist) {
   const slug = (s) =>
@@ -569,6 +580,7 @@ const api = {
   mmss,
   moveKey,
   songKey,
+  esc,
   statusOf,
   statusTally,
   normLimit,

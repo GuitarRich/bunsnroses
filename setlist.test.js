@@ -28,6 +28,7 @@ import {
   parseLyrics,
   lyricsFor,
   lyricBlocks,
+  esc,
 } from "./setlist.js";
 
 function song(partial) {
@@ -419,5 +420,22 @@ describe("lyrics", () => {
     assert.deepEqual(lyricBlocks("one\ntwo\n\n\nthree"), ["one\ntwo", "three"]);
     assert.deepEqual(lyricBlocks(""), []);
     assert.deepEqual(lyricBlocks("   \n\n  "), []);
+  });
+});
+
+describe("esc", () => {
+  it("neutralises markup from song titles and member names", () => {
+    assert.equal(esc('<img src=x onerror=alert(1)>'), "&lt;img src=x onerror=alert(1)&gt;");
+    assert.equal(esc('<script>x</script>'), "&lt;script&gt;x&lt;/script&gt;");
+    assert.equal(esc('" onmouseover="evil()'), "&quot; onmouseover=&quot;evil()");
+    assert.equal(esc("it's & that"), "it&#39;s &amp; that");
+  });
+
+  it("leaves ordinary titles alone and survives blanks", () => {
+    assert.equal(esc("Rock 'n' Roll"), "Rock &#39;n&#39; Roll");
+    assert.equal(esc("Would?"), "Would?");
+    assert.equal(esc(null), "");
+    assert.equal(esc(undefined), "");
+    assert.equal(esc(0), "0");
   });
 });

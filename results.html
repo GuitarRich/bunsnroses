@@ -148,7 +148,7 @@ import { VERSION, CHANGES, LABEL, TRACKS, keyOf } from "./catalog.js";
 import {
   TARGET_SONGS, MIN_SONGS, MAX_SONGS, MAX_PER_ARTIST, STATUSES, STATUS_LABEL, eraLabel,
   scoreSongs, generateSet, searchLinks, parseLen, mmss, moveKey,
-  tuningFor, statusOf,
+  tuningFor, statusOf, esc,
 } from "./setlist.js";
 import {
   S, BAND, OWNER, VOTES_API, onStatus, isOwner, voters, log, relist, persist,
@@ -326,8 +326,8 @@ function crewChips(k) {
   const chips = BAND.map((n) => {
     const s = statusOf(S.plan.progress, k, n);
     const cls = s === "know-it" ? "k" : s === "in-progress" ? "p" : "";
-    return '<span class="chip ' + cls + (n === S.me ? " me" : "") + '" title="' + n + ' — ' + STATUS_LABEL[s] + '">' +
-      '<b></b>' + INITIALS(n) + '</span>';
+    return '<span class="chip ' + cls + (n === S.me ? " me" : "") + '" title="' + esc(n) + ' — ' + STATUS_LABEL[s] + '">' +
+      '<b></b>' + esc(INITIALS(n)) + '</span>';
   }).join("");
   return '<div class="crewchips">' + chips + '</div>';
 }
@@ -364,7 +364,7 @@ function inOutButtons(r) {
 function voteEditor(r) {
   const ed = document.createElement("div");
   ed.className = "editor";
-  ed.innerHTML = '<div class="lbl">Your vote — ' + r.name + '</div><div class="opts"></div>';
+  ed.innerHTML = '<div class="lbl">Your vote — ' + esc(r.name) + '</div><div class="opts"></div>';
   const opts = ed.querySelector(".opts");
   [3, 2, 1, 0].forEach((v) => {
     const b = document.createElement("button");
@@ -470,7 +470,7 @@ function drawCrew(gen) {
     row.className = "crewrow" + (r.name === S.me ? " you" : "");
     const w = (v) => (v / n) * 100 + "%";
     row.innerHTML =
-      '<div class="nm">' + r.name + (r.name === S.me ? '<em>you</em>' : '') + '</div>' +
+      '<div class="nm">' + esc(r.name) + (r.name === S.me ? '<em>you</em>' : '') + '</div>' +
       '<div class="crewbar" title="' + r["know-it"] + ' know it · ' + r["in-progress"] +
         ' learning · ' + r["not-started"] + ' not started">' +
         '<i class="k" style="width:' + w(r["know-it"]) + '"></i>' +
@@ -571,9 +571,9 @@ function drawSet(gen) {
         '<button data-dir="1" ' + (k === list.length - 1 ? "disabled" : "") + '>&#9660;</button>' +
         '</div>' : "") +
       '<div class="rk mono">' + String(k + 1).padStart(2, "0") + '</div>' +
-      '<div class="rt"><b>' + r.name + songTags(r) +
-        (tuneOf(r) ? '<span class="tag tune">' + tuneOf(r) + '</span>' : "") + '</b>' +
-      '<span>' + r.artist + (r.lead ? " · " + r.lead : "") + ' · ' + mmss(r.dur) + ' · ' + eraLabel(r) + '</span>' +
+      '<div class="rt"><b>' + esc(r.name) + songTags(r) +
+        (tuneOf(r) ? '<span class="tag tune">' + esc(tuneOf(r)) + '</span>' : "") + '</b>' +
+      '<span>' + esc(r.artist) + (r.lead ? " · " + esc(r.lead) : "") + ' · ' + mmss(r.dur) + ' · ' + eraLabel(r) + '</span>' +
       (open
         ? linkRow(r) +
           '<div class="rowmeta"><span class="metalbl">You</span></div>' +
@@ -623,7 +623,7 @@ function drawSet(gen) {
 /* ---------- the full ranking ---------- */
 function drawPool(gen) {
   const who = voters();
-  $("poolLegend").innerHTML = who.map((n) => '<i>' + n + '</i>').join("") + '<i class="pad"></i>';
+  $("poolLegend").innerHTML = who.map((n) => '<i>' + esc(n) + '</i>').join("") + '<i class="pad"></i>';
   const list = $("poolList");
   list.innerHTML = "";
   $("poolCount").textContent = S.list.length;
@@ -642,7 +642,7 @@ function drawPool(gen) {
         (v === undefined ? "·" : v) + '</div>';
     }).join("");
     row.innerHTML = '<div class="rk mono">' + (k + 1) + '</div>' +
-      '<div class="rt"><b>' + r.name + songTags(r) + '</b><span>' + r.artist + ' · ' + mmss(r.dur) + '</span></div>' +
+      '<div class="rt"><b>' + esc(r.name) + songTags(r) + '</b><span>' + esc(r.artist) + ' · ' + mmss(r.dur) + '</span></div>' +
       '<div class="grid">' + cells + '</div><div class="rs mono">' + r.sum + '</div>';
     if (owner) row.insertBefore(inOutButtons(r), row.querySelector(".grid"));
     row.onclick = (e) => {
@@ -683,8 +683,8 @@ function drawCustom() {
     const anyVotes = Object.keys(S.pool).some((n) => S.pool[n][c.k] !== undefined);
     const row = document.createElement("div");
     row.className = "crow";
-    row.innerHTML = '<b>' + c.name + '</b><span>' + c.artist + '</span><span>' + mmss(c.dur) + '</span>' +
-      '<span>' + eraLabel(c) + '</span>' + (c.energy ? '<span>E' + c.energy + '</span>' : "") + (c.lead ? '<span>' + c.lead + '</span>' : "");
+    row.innerHTML = '<b>' + esc(c.name) + '</b><span>' + esc(c.artist) + '</span><span>' + mmss(c.dur) + '</span>' +
+      '<span>' + eraLabel(c) + '</span>' + (c.energy ? '<span>E' + esc(c.energy) + '</span>' : "") + (c.lead ? '<span>' + esc(c.lead) + '</span>' : "");
     if (owner) {
       const rm = document.createElement("button");
       rm.textContent = anyVotes ? "Voted" : "Remove";
@@ -732,9 +732,9 @@ function draw() {
   const y = window.scrollY;
   const gen = buildSet();
   const who = voters();
-  $("whoami").innerHTML = "Signed in as <b>" + S.me + "</b>" + (isOwner() ? " · you can edit the set" : " · set is read-only for you");
+  $("whoami").innerHTML = "Signed in as <b>" + esc(S.me) + "</b>" + (isOwner() ? " · you can edit the set" : " · set is read-only for you");
   $("voters").innerHTML = who.length
-    ? '<b>Votes in:</b> ' + who.map((n) => n + " " + Object.keys(S.pool[n]).length + "/" + S.list.length).join(" &nbsp;·&nbsp; ")
+    ? '<b>Votes in:</b> ' + who.map((n) => esc(n) + " " + Object.keys(S.pool[n]).length + "/" + S.list.length).join(" &nbsp;·&nbsp; ")
     : "No votes recorded yet.";
   drawCrew(gen);
   drawSet(gen);

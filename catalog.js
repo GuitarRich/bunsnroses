@@ -70,11 +70,12 @@ export const TRACKS=[
 
 export const BAND = ["Rich", "Joel", "Anders", "Pete"];
 export const OWNER = "Rich";            // only this person edits songs and the setlist
-export const VERSION = "v21";
+export const VERSION = "v22";
 export const LABEL = { 3: "Must play", 2: "Yes", 1: "Maybe", 0: "Pass" };
 export const NB = TRACKS.length;        // built-in count (code positions never change)
 
 export const CHANGES = {
+ "v22":"Song titles, artists, tunings and names are escaped before they hit the page, so nothing typed into the sheet can run as code",
  "v21":"Rebuilt navigation — Vote/Setlist/Lyrics on every page, the setlist page split into three tabs, one-line song rows, and a track list beside the voting card",
  "v20":"Paste lyrics straight into the lyric book — saves to the sheet for everyone, with a look-up link on every song",
  "v19":"Lyric book — a printable, PDF-ready sheet of every song's words in running order, tuning in the title. Paste the words into the sheet's Lyrics tab",
