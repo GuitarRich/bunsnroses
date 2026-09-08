@@ -9,7 +9,8 @@
  * It is deliberately separate from /api/votes: lyrics are bulky and only the
  * book needs them, so the poll every page makes stays small.
  */
-import { readLyrics, seedLyrics, readBody } from "./_sheets.js";
+import { readLyrics, seedLyrics, writeLyric, readBody } from "./_sheets.js";
+import { songKey } from "../setlist.js";
 
 function appSecret() {
   let s = (process.env.APP_SECRET || "").trim();
@@ -33,6 +34,19 @@ export default async function handler(req, res) {
       if (expected && String(body.secret || "").trim() !== expected) {
         return res.status(401).json({ ok: false, error: "Wrong access code." });
       }
+      // kind "save" writes one song's words; anything else seeds blank rows.
+      if (body.kind === "save") {
+        const name = String(body.name || "").trim();
+        const artist = String(body.artist || "").trim();
+        if (!name) return res.status(400).json({ ok: false, error: "Missing song." });
+        const text = String(body.text == null ? "" : body.text);
+        if (text.length > 20000) {
+          return res.status(400).json({ ok: false, error: "That's too long for one song." });
+        }
+        const lyrics = await writeLyric(songKey(name, artist), name, artist, text);
+        return res.status(200).json({ ok: true, lyrics });
+      }
+
       const songs = (Array.isArray(body.songs) ? body.songs : [])
         .filter((s) => s && s.k && s.name)
         .map((s) => ({ k: String(s.k), name: String(s.name), artist: String(s.artist || "") }));

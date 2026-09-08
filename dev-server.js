@@ -104,14 +104,19 @@ const server = http.createServer(async (req, res) => {
     if (p === "/api/lyrics") {
       if (req.method === "POST") {
         const b = await readBody(req);
+        if (b.kind === "save") {
+          const k = songKey(b.name, b.artist);
+          const i = lyricRows.findIndex((r) => r[0] === k);
+          const row = [k, b.name || "", b.artist || "", String(b.text == null ? "" : b.text)];
+          if (i >= 0) lyricRows[i] = row; else lyricRows.push(row);
+          return json(res, 200, { ok: true, lyrics: parseLyrics(lyricRows) });
+        }
         const seen = new Set(lyricRows.map((r) => r[0]));
         (b.songs || []).filter((s) => s && s.k && s.name).forEach((s) => {
           const k = songKey(s.name, s.artist);
           if (seen.has(k)) return;
           seen.add(k);
-          // Dev stub only: placeholder text so the book's layout is visible
-          // offline. The real sheet holds whatever the band typed.
-          lyricRows.push([k, s.name, s.artist || "", "(paste " + s.name + " lyrics into the sheet)"]);
+          lyricRows.push([k, s.name, s.artist || "", ""]);
         });
       }
       return json(res, 200, { ok: true, lyrics: parseLyrics(lyricRows) });

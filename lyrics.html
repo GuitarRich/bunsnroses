@@ -66,6 +66,18 @@
 #lb .block:last-child{margin-bottom:0}
 #lb .missing{margin-top:var(--s3);font-size:14px;color:var(--dim);font-style:italic}
 
+#lb .edit{margin-top:var(--s3);padding-top:var(--s3);border-top:1px solid var(--line2)}
+#lb .edit textarea{width:100%;min-height:190px;resize:vertical;background:var(--stage);color:var(--cream);
+  border:1px solid var(--line);border-radius:var(--r);padding:var(--s3);font-family:'IBM Plex Mono',monospace;
+  font-size:13px;line-height:1.65}
+#lb .edit textarea:focus{outline:none;border-color:var(--lamp)}
+#lb .editbar{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap;margin-top:var(--s2)}
+#lb .editbar .hint{font-size:12px;color:var(--faint);margin-left:auto}
+#lb .small{font-size:12px;padding:7px 12px}
+#lb .src{font-size:12px;color:var(--dim);text-decoration:none;border-bottom:1px dotted var(--line)}
+#lb .src:hover{color:var(--lamp)}
+#lb .done{color:var(--ok)}
+
 @media (max-width:640px){
   #lb .toc{columns:1}
   #lb h1{font-size:24px}
@@ -93,6 +105,7 @@
   #lb .tag.tune{color:#000;border-color:#666;font-weight:700}
   #lb .no{color:#000}
   #lb .words{font-size:11.5pt;line-height:1.6}
+  #lb .edit,#lb .src{display:none!important}
 }
 </style>
 
@@ -117,16 +130,17 @@
       <div class="bar noprint">
         <button class="btn go" id="print">Save as PDF / Print</button>
         <button class="btn" id="copy">Copy as text</button>
-        <button class="btn" id="seed">Add missing songs to the sheet</button>
+        <button class="btn" id="seed">Add blank rows to the sheet</button>
         <span class="spacer"></span>
         <a class="btn" href="./results.html">Back to the setlist</a>
       </div>
       <div id="msg" class="msg noprint hide"></div>
       <div id="book"></div>
       <p class="note noprint" style="margin-top:var(--s4)">
-        Lyrics come from the <b>Lyrics</b> tab of the band sheet — paste the words into the
-        <b>Lyrics</b> column next to each song, then reload this page. Print with backgrounds off
-        for a clean black-on-white book; each song starts on its own page.
+        Paste each song's words into its box and hit <b>Save</b> — it writes straight to the
+        <b>Lyrics</b> tab of the band sheet, so everyone sees it. You can type into that tab
+        directly instead if you'd rather. Print with backgrounds off for a clean black-on-white
+        book; each song starts on its own page.
       </p>
     </div>
   </div>
@@ -136,7 +150,7 @@
 import { VERSION } from "./catalog.js";
 import {
   TARGET_SONGS, MAX_PER_ARTIST,
-  scoreSongs, generateSet, mmss, tuningFor, lyricsFor, lyricBlocks,
+  scoreSongs, generateSet, mmss, tuningFor, lyricsFor, lyricBlocks, searchLinks,
 } from "./setlist.js";
 import { S, pull } from "./store.js";
 
@@ -147,6 +161,7 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) =>
 $("ver").textContent = VERSION;
 
 let LYRICS = {};
+const editing = {};   // song key -> paste box is open
 
 function say(html, fail) {
   const el = $("msg");
@@ -201,20 +216,102 @@ function draw() {
     el.className = "song";
     el.innerHTML = heading(r, i) +
       '<div class="meta"><span class="tag">' + mmss(r.dur) + '</span>' +
-      (r.year ? '<span class="tag">' + esc(r.year) + '</span>' : "") + '</div>' +
+      (r.year ? '<span class="tag">' + esc(r.year) + '</span>' : "") +
+      '<a class="src noprint" target="_blank" rel="noopener noreferrer" href="' +
+        esc(searchLinks(r).genius) + '">Look up the words</a></div>' +
       (words
         ? '<div class="words">' + lyricBlocks(words).map((b) => '<div class="block">' + esc(b) + '</div>').join("") + '</div>'
-        : '<p class="missing">No lyrics in the sheet for this one yet.</p>');
+        : '<p class="missing">No lyrics saved for this one yet.</p>');
+    el.appendChild(editor(r, words));
     book.appendChild(el);
   });
 
   if (missing.length) {
-    say("<b>" + missing.length + " of " + list.length + " songs have no lyrics yet.</b> Paste the words " +
-      "into the Lyrics tab of the band sheet: " +
-      missing.map((r) => esc(r.name)).join(", ") + ".");
+    say("<b>" + missing.length + " of " + list.length + " songs still need words.</b> Paste them into " +
+      "the box under each one: " + missing.map((r) => esc(r.name)).join(", ") + ".");
   } else {
     $("msg").classList.add("hide");
   }
+}
+
+/**
+ * Paste box for one song. Saves straight to the sheet's Lyrics tab, so nobody
+ * has to open the spreadsheet — the words still only ever come from whoever
+ * types them in here.
+ */
+function editor(r, words) {
+  // A song that already has words collapses to a single Edit button, so the
+  // finished book stays readable.
+  if (words && !editing[r.k]) {
+    const holder = document.createElement("div");
+    holder.className = "edit noprint";
+    const bar = document.createElement("div");
+    bar.className = "editbar";
+    const btn = document.createElement("button");
+    btn.className = "btn small";
+    btn.textContent = "Edit lyrics";
+    btn.onclick = () => { editing[r.k] = true; draw(); };
+    const note = document.createElement("span");
+    note.className = "hint done";
+    note.textContent = "Saved in the sheet";
+    bar.appendChild(btn);
+    bar.appendChild(note);
+    holder.appendChild(bar);
+    return holder;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "edit noprint";
+
+  const ta = document.createElement("textarea");
+  ta.value = words || "";
+  ta.placeholder = "Paste the words for " + r.name + " here.\n\nLeave a blank line between verses — " +
+    "the book keeps each one whole instead of splitting it across a page.";
+  ta.spellcheck = false;
+  ta.oninput = () => { editing[r.k] = true; };
+
+  const bar = document.createElement("div");
+  bar.className = "editbar";
+
+  const save = document.createElement("button");
+  save.className = "btn go small";
+  save.textContent = words ? "Save changes" : "Save lyrics";
+  save.onclick = async () => {
+    save.disabled = true;
+    save.textContent = "Saving";
+    try {
+      const res = await fetch("/api/lyrics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          secret: S.secret, kind: "save",
+          name: r.name, artist: r.artist, text: ta.value,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || "HTTP " + res.status);
+      LYRICS = d.lyrics || {};
+      delete editing[r.k];
+      draw();
+    } catch (e) {
+      save.disabled = false;
+      save.textContent = "Save lyrics";
+      say("<b>Couldn't save.</b> " + esc(e.message || e), true);
+    }
+  };
+  bar.appendChild(save);
+
+  if (words) {
+    const hide = document.createElement("button");
+    hide.className = "btn small";
+    hide.textContent = "Done";
+    hide.onclick = () => { delete editing[r.k]; draw(); };
+    bar.appendChild(hide);
+  }
+
+  wrap.appendChild(ta);
+  wrap.appendChild(bar);
+  return wrap;
 }
 
 /* ---------- plain-text version, for pasting anywhere ---------- */
@@ -262,7 +359,7 @@ $("seed").onclick = async () => {
     say("<b>Couldn't reach the sheet.</b> " + esc(e.message || e), true);
   } finally {
     btn.disabled = false;
-    btn.textContent = "Add missing songs to the sheet";
+    btn.textContent = "Add blank rows to the sheet";
   }
 };
 

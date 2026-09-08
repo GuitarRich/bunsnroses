@@ -275,6 +275,45 @@ export async function seedLyrics(songs, existing) {
 }
 
 /**
+ * Write one song's words into the Lyrics tab. Finds the row by key and edits
+ * only that row's Lyrics cell, so two people pasting different songs at the
+ * same time can't overwrite each other. A song with no row yet gets appended.
+ */
+export async function writeLyric(key, title, artist, text) {
+  await ensureTabs();
+  const sheets = sheetsClient();
+  const id = sheetId();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: id,
+    range: `${LYRICS_TAB}!A2:D500`,
+  });
+  const rows = res.data.values || [];
+  const idx = rows.findIndex((r) => {
+    const k = String(r[0] || "").trim() || (r[1] ? songKey(r[1], r[2]) : "");
+    return k === key;
+  });
+  const row = [key, title || "", artist || "", String(text == null ? "" : text)];
+
+  if (idx >= 0) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `${LYRICS_TAB}!A${idx + 2}:D${idx + 2}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [row] },
+    });
+  } else {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: id,
+      range: `${LYRICS_TAB}!A2:D2`,
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: [row] },
+    });
+  }
+  return readLyrics();
+}
+
+/**
  * Rewrite the whole Setlist tab from the current song list. Owner-only,
  * enforced by the caller. Every song gets a row so the sheet is a complete,
  * editable picture rather than a sparse override list.
