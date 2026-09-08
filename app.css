@@ -470,6 +470,18 @@
   #sv .row{flex-wrap:wrap}
   /* keep the score on the title line; the vote grid drops below it */
   #sv .rs{order:2}
+  /* A set row has no vote grid to drop, so it stays on one line and the title
+     block does the wrapping. Without this the status dot and the chevron wrap
+     into the middle of the row and the score loses its place. */
+  #sv .setrow{flex-wrap:nowrap;align-items:center}
+  #sv .setrow .rt{order:1}
+  #sv .setrow .rdot{order:2}
+  #sv .setrow .rs{order:3;min-width:34px}
+  #sv .setrow .rchev{order:4}
+  /* Dragging doesn't work on touch anyway; the arrows do the reordering, so
+     the grab handle is 22px of nothing. */
+  #sv .setrow .handle{display:none}
+  #sv .setrow .arrows button{width:26px}
   #sv .grid{order:3;width:100%;margin-top:var(--s2)}
   #sv .cell{flex:1;width:auto}
   /* legend stays, stretched so each label sits over its own column */
