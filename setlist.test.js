@@ -34,6 +34,9 @@ import {
   expandChordPro,
   lyricLines,
   hasChords,
+  scrollPlan,
+  clampSpeed,
+  advanceScroll,
   esc,
 } from "./setlist.js";
 import { chordShape, parseChord, stringsFor, fingering, TUNINGS } from "./chords.js";
@@ -627,5 +630,117 @@ describe("chord shapes", () => {
     assert.deepEqual(f.barre, { fret: 1, from: 0, to: 5 });
     assert.deepEqual(fingering([-1, 0, 2, 2, 1, 0]).fingers, [0, 0, 2, 3, 1, 0]);
     assert.equal(fingering([0, 0, 0, 0, 0, 0]).count, 0);
+  });
+});
+
+describe("autoscroll pacing", () => {
+  it("ends with the last line at the bottom of the screen, not off the top", () => {
+    const p = scrollPlan(1000, 3000, 800, 300);
+    assert.equal(p.from, 1000);
+    assert.equal(p.to, 3200);          // 1000 + 3000 - 800
+    assert.equal(p.distance, 2200);
+  });
+
+  it("paces itself to the length of the song", () => {
+    const short = scrollPlan(0, 2000, 800, 120);
+    const long = scrollPlan(0, 2000, 800, 300);
+    assert.ok(short.pxPerSec > long.pxPerSec);
+    assert.equal(long.pxPerSec * 300, long.distance);
+  });
+
+  it("has nowhere to go when the song already fits on screen", () => {
+    const p = scrollPlan(1000, 500, 800, 300);
+    assert.equal(p.distance, 0);
+    assert.equal(p.pxPerSec, 0);       // and no division by nothing
+    assert.equal(p.to, p.from);
+  });
+
+  it("survives a song with no running time on it", () => {
+    for (const dur of [0, -5, null, undefined, "", "abc"]) {
+      assert.equal(scrollPlan(0, 3000, 800, dur).pxPerSec, 0, String(dur));
+    }
+  });
+
+  it("never scrolls above the top of the page", () => {
+    assert.equal(scrollPlan(-500, 3000, 800, 300).from, 0);
+  });
+
+  it("keeps the speed override inside something readable", () => {
+    assert.equal(clampSpeed(1.1), 1.1);
+    assert.equal(clampSpeed(0.1), 0.25);
+    assert.equal(clampSpeed(99), 4);
+    assert.equal(clampSpeed("nonsense"), 1);
+    assert.equal(clampSpeed(undefined), 1);
+    assert.equal(clampSpeed(1.0000001), 1);   // rounded, so the readout stays short
+  });
+});
+
+describe("autoscroll frames", () => {
+  const plan = scrollPlan(1000, 3000, 800, 200);   // 2200px over 200s = 11px/s
+
+  it("moves at the song's pace", () => {
+    const f = advanceScroll(plan, plan.from, 1, 1);
+    assert.equal(Math.round(f.pos), 1011);
+    assert.equal(f.done, false);
+  });
+
+  it("takes the length of the song to get to the end", () => {
+    let pos = plan.from;
+    let ticks = 0;
+    while (ticks < 1000) {
+      const f = advanceScroll(plan, pos, 1, 1);
+      pos = f.pos;
+      ticks++;
+      if (f.done) break;
+    }
+    assert.equal(ticks, 200);
+    assert.equal(pos, plan.to);
+  });
+
+  it("stops itself at the end and goes no further", () => {
+    const f = advanceScroll(plan, plan.to - 1, 10, 1);
+    assert.equal(f.pos, plan.to);
+    assert.equal(f.done, true);
+    assert.equal(f.progress, 1);
+    assert.equal(f.remaining, 0);
+    // and a frame after the end stays put rather than running off the page
+    assert.equal(advanceScroll(plan, plan.to, 5, 1).pos, plan.to);
+  });
+
+  it("honours the speed override", () => {
+    const one = advanceScroll(plan, plan.from, 1, 1).pos - plan.from;
+    const two = advanceScroll(plan, plan.from, 1, 2).pos - plan.from;
+    const half = advanceScroll(plan, plan.from, 1, 0.5).pos - plan.from;
+    assert.ok(Math.abs(two - one * 2) < 1e-9);
+    assert.ok(Math.abs(half - one / 2) < 1e-9);
+    // out-of-range overrides are clamped, not obeyed
+    assert.equal(advanceScroll(plan, plan.from, 1, 99).pos, advanceScroll(plan, plan.from, 1, 4).pos);
+  });
+
+  it("reports the time left, and shortens it when you speed up", () => {
+    assert.equal(Math.round(advanceScroll(plan, plan.from, 0, 1).remaining), 200);
+    assert.equal(Math.round(advanceScroll(plan, plan.from, 0, 2).remaining), 100);
+  });
+
+  it("picks up from wherever the reader dragged the page to", () => {
+    const dragged = advanceScroll(plan, 2000, 1, 1);
+    assert.equal(Math.round(dragged.pos), 2011);
+    assert.ok(dragged.progress > 0.45 && dragged.progress < 0.46);
+    // dragged above the start, it clamps rather than scrolling backwards
+    assert.equal(advanceScroll(plan, 0, 0, 1).pos, plan.from);
+  });
+
+  it("does nothing for a song that already fits on screen", () => {
+    const flat = scrollPlan(0, 500, 800, 200);
+    const f = advanceScroll(flat, flat.from, 10, 1);
+    assert.equal(f.pos, flat.from);
+    assert.equal(f.done, true);
+    assert.equal(f.remaining, 0);
+  });
+
+  it("shrugs off a junk frame time", () => {
+    for (const dt of [-1, NaN, undefined, null, "x"]) {
+      assert.equal(advanceScroll(plan, plan.from, dt, 1).pos, plan.from, String(dt));
+    }
   });
 });

@@ -120,6 +120,33 @@
 #lb .pop .ptune{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;
   letter-spacing:.12em;font-size:9px;color:var(--faint);margin-top:6px}
 #lb .pop .pnone{font-size:12px;color:var(--dim);padding:6px 0}
+
+/* ---------- the autoscroll deck ---------- */
+#lb .play{margin-left:auto}
+#lb .song.rolling{box-shadow:0 0 0 1px rgba(245,166,35,.45)}
+
+/* Fixed to the bottom so the controls stay under your thumb while the words
+   move — hunting for a pause button mid-song is the one thing this must not
+   make you do. */
+#lb .deck{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:60;
+  display:flex;align-items:center;gap:var(--s2);padding:9px 12px;border-radius:99px;
+  background:var(--panel2);border:1px solid var(--line);
+  box-shadow:0 10px 34px rgba(0,0,0,.6);max-width:calc(100vw - 20px)}
+#lb .deck .dname{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;
+  letter-spacing:.1em;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:24ch}
+#lb .deck button{border:1px solid var(--line);border-radius:99px;background:var(--panel2);
+  color:var(--cream);font-size:13px;font-weight:600;padding:8px 13px;line-height:1;white-space:nowrap}
+#lb .deck button:hover{border-color:var(--lamp);color:var(--lamp)}
+#lb .deck .go{background:var(--lamp);color:#1B1710;border-color:var(--lamp)}
+#lb .deck .go:hover{color:#1B1710;filter:brightness(1.08)}
+#lb .deck .step{padding:8px 11px;font-family:'IBM Plex Mono',monospace}
+#lb .deck .rate{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--lamp);
+  min-width:44px;text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#lb .deck .dbar{flex:1;min-width:60px;height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+#lb .deck .dbar i{display:block;height:100%;width:0;background:var(--lamp)}
+#lb .deck .dleft{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim);min-width:42px;
+  text-align:right}
 #lb .ln-section{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;
   letter-spacing:.14em;font-size:12px;font-weight:600;color:var(--dim);margin-bottom:5px}
 #lb .missing{margin-top:var(--s3);font-size:14px;color:var(--dim);font-style:italic}
@@ -163,6 +190,18 @@
   /* A finger has to land on the chip, so it gets real height on a phone
      without taking any width — width is what holds the grid together. */
   #lb .chip{padding:5px 3px;margin:-5px -3px}
+
+  /* On a phone the deck is a full-width bar: the song name and the time go on
+     top, the controls underneath where both thumbs can reach them. */
+  #lb .deck{left:8px;right:8px;bottom:8px;transform:none;max-width:none;border-radius:var(--r);
+    flex-wrap:wrap;row-gap:8px;padding:10px}
+  #lb .deck .dname{order:1;flex:1}
+  #lb .deck .dleft{order:2}
+  #lb .deck .dbar{order:3;flex-basis:100%;min-width:0}
+  #lb .deck .pp{order:4}
+  #lb .deck .step{order:5}
+  #lb .deck .rate{order:6}
+  #lb .deck .stop{order:8;margin-left:auto}
   #lb .edit textarea{min-height:150px;font-size:12px}
 }
 
@@ -195,7 +234,8 @@
   #lb .ln-chord{color:#000;font-weight:700}
   #lb .ln-section{color:#000}
   #lb .chip{background:none;padding:0;margin:0;color:#000}
-  #lb .pop{display:none!important}
+  #lb .pop,#lb .deck{display:none!important}
+  #lb .song.rolling{box-shadow:none}
   #lb .edit,#lb .src{display:none!important}
 }
 </style>
@@ -239,8 +279,10 @@
         directly instead if you'd rather. <b>Chords go in the same box:</b> paste an Ultimate
         Guitar tab as-is and the chord lines are picked out and held over the words, or write
         them inline as <span class="mono">[G]like this</span>. Hover or tap any chord to see how
-        it's fingered — in that song's tuning, not standard. Print with backgrounds off for a
-        clean black-on-white book; each song starts on its own page.
+        it's fingered — in that song's tuning, not standard. <b>Scroll it</b> runs the words past
+        you over the song's own running time; nudge the speed with &minus; and + if the band plays
+        it faster than the record, and tap the number to go back to the song's pace. Print with
+        backgrounds off for a clean black-on-white book; each song starts on its own page.
       </p>
     </div>
   </div>
@@ -251,7 +293,7 @@ import { VERSION } from "./catalog.js";
 import {
   TARGET_SONGS, MAX_PER_ARTIST,
   scoreSongs, generateSet, mmss, tuningFor, lyricsFor, lyricBlocks, searchLinks,
-  lyricLines, hasChords, chordParts,
+  lyricLines, hasChords, chordParts, scrollPlan, clampSpeed, advanceScroll,
 } from "./setlist.js";
 import { chordShape, stringsFor } from "./chords.js";
 import { S, pull } from "./store.js";
@@ -364,13 +406,16 @@ function draw() {
     // The diagrams are drawn against this song's strings, not standard tuning:
     // half this set is in Drop D or Eb, where the standard shapes are wrong.
     el.dataset.tuning = tuningFor(S.tunings, r.name, r.artist) || "E standard";
+    el.dataset.dur = r.dur;
+    el.dataset.song = r.name;
     el.innerHTML = heading(r, i) +
       '<div class="meta"><span class="tag">' + mmss(r.dur) + '</span>' +
       (r.year ? '<span class="tag">' + esc(r.year) + '</span>' : "") +
       '<a class="src noprint" target="_blank" rel="noopener noreferrer" href="' +
         esc(searchLinks(r).genius) + '">Look up the words</a>' +
       '<a class="src noprint" target="_blank" rel="noopener noreferrer" href="' +
-        esc(searchLinks(r).ug) + '">Look up the chords</a></div>' +
+        esc(searchLinks(r).ug) + '">Look up the chords</a>' +
+      '<button class="btn small play noprint" type="button">Scroll it</button></div>' +
       (words ? renderWords(words) : '<p class="missing">No lyrics saved for this one yet.</p>');
     el.appendChild(editor(r, words));
     book.appendChild(el);
@@ -552,6 +597,9 @@ $("lb").appendChild(pop);
 let pinned = null;
 
 function hidePop() {
+  // Called on every scroll event, so it runs a few thousand times during an
+  // autoscroll: do nothing when there is nothing to put away.
+  if (!pinned && pop.classList.contains("hide")) return;
   pop.classList.add("hide");
   if (pinned) pinned.setAttribute("aria-expanded", "false");
   pinned = null;
@@ -610,6 +658,160 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") hidePop(); });
 window.addEventListener("scroll", hidePop, true);
 window.addEventListener("resize", hidePop);
+
+/* ---------- autoscroll ---------- */
+
+/**
+ * Scrolls one song past the reader over the length of the song.
+ *
+ * The pace comes from the running time already in the catalogue, so a 5:13
+ * song takes 5:13 to go by. That is a starting point rather than a promise —
+ * nobody plays to the recording — so the speed override multiplies it live and
+ * dragging the page by hand doesn't fight the scroll: the run picks up from
+ * wherever you left it.
+ */
+const deck = document.createElement("div");
+deck.className = "deck hide noprint";
+deck.innerHTML =
+  '<div class="dname"></div>' +
+  '<div class="dleft"></div>' +
+  '<div class="dbar"><i></i></div>' +
+  '<button class="pp go" type="button">Pause</button>' +
+  '<button class="step" type="button" aria-label="Slower">&minus;</button>' +
+  '<span class="rate" role="button" tabindex="0" title="Back to the song’s own pace">1.0&times;</span>' +
+  '<button class="step" type="button" aria-label="Faster">+</button>' +
+  '<button class="stop" type="button">Stop</button>';
+$("lb").appendChild(deck);
+
+const dName = deck.querySelector(".dname");
+const dLeft = deck.querySelector(".dleft");
+const dFill = deck.querySelector(".dbar i");
+const dPP = deck.querySelector(".pp");
+const dRate = deck.querySelector(".rate");
+const [dSlower, dFaster] = deck.querySelectorAll(".step");
+const dStop = deck.querySelector(".stop");
+
+let roll = null;        // the run in progress
+let mult = 1;
+let wake = null;
+
+/* A phone that sleeps halfway through the second verse is no use on a stage. */
+async function keepAwake(on) {
+  try {
+    if (on) {
+      if (!wake && "wakeLock" in navigator) wake = await navigator.wakeLock.request("screen");
+    } else if (wake) {
+      await wake.release();
+      wake = null;
+    }
+  } catch (e) { /* unsupported or refused — the scroll works either way */ }
+}
+
+function showRate() { dRate.textContent = mult.toFixed(2).replace(/0$/, "") + "×"; }
+
+function stopRoll() {
+  if (roll) {
+    cancelAnimationFrame(roll.raf);
+    roll.song.classList.remove("rolling");
+  }
+  roll = null;
+  deck.classList.add("hide");
+  keepAwake(false);
+}
+
+function setPaused(on) {
+  if (!roll) return;
+  roll.paused = on;
+  dPP.textContent = on ? "Play" : "Pause";
+  keepAwake(!on);
+  if (!on) {
+    roll.last = 0;
+    roll.raf = requestAnimationFrame(step);
+  } else {
+    cancelAnimationFrame(roll.raf);
+  }
+}
+
+function step(ts) {
+  if (!roll || roll.paused) return;
+  if (!roll.last) roll.last = ts;
+  const dt = Math.min(0.25, (ts - roll.last) / 1000);   // a backgrounded tab shouldn't lurch
+  roll.last = ts;
+
+  // If the page moved without us, the reader dragged it. Take their position
+  // and carry on from there rather than yanking them back.
+  if (Math.abs(window.scrollY - roll.applied) > 2) roll.pos = window.scrollY;
+
+  const next = advanceScroll(roll.plan, roll.pos, dt, mult);
+  roll.pos = next.pos;
+  window.scrollTo(0, roll.pos);
+  roll.applied = window.scrollY;
+  dFill.style.width = Math.round(next.progress * 100) + "%";
+  dLeft.textContent = mmss(Math.round(next.remaining));
+
+  if (next.done) { stopRoll(); return; }   // auto-stop at the end of the song
+  roll.raf = requestAnimationFrame(step);
+}
+
+function startRoll(song) {
+  stopRoll();
+  const rect = song.getBoundingClientRect();
+  const top = rect.top + window.scrollY;
+  const plan = scrollPlan(top, rect.height, window.innerHeight, Number(song.dataset.dur));
+
+  dName.textContent = song.dataset.song || "";
+  showRate();
+  deck.classList.remove("hide");
+  song.classList.add("rolling");
+
+  if (!plan.pxPerSec) {
+    // The whole song is already on screen, so there is nothing to scroll.
+    dLeft.textContent = "—";
+    dFill.style.width = "100%";
+    window.scrollTo(0, plan.from);
+    roll = { song, plan, pos: plan.from, applied: plan.from, paused: true, last: 0, raf: 0 };
+    dPP.textContent = "Play";
+    return;
+  }
+
+  window.scrollTo(0, plan.from);
+  roll = { song, plan, pos: plan.from, applied: window.scrollY, paused: true, last: 0, raf: 0 };
+  dFill.style.width = "0%";
+  dLeft.textContent = mmss(Math.round(plan.distance / (plan.pxPerSec * mult)));
+  // A hidden tab gets no frames, so starting there would show "Pause" over a
+  // page that never moves. Wait for it to come back to the front.
+  setPaused(document.hidden);
+}
+
+book.addEventListener("click", (e) => {
+  const btn = e.target.closest(".play");
+  if (!btn) return;
+  const song = btn.closest(".song");
+  if (roll && roll.song === song) { stopRoll(); return; }
+  startRoll(song);
+});
+
+dPP.onclick = () => setPaused(!roll || !roll.paused);
+dStop.onclick = stopRoll;
+const nudge = (by) => { mult = clampSpeed(mult + by); showRate(); };
+dSlower.onclick = () => nudge(-0.1);
+dFaster.onclick = () => nudge(0.1);
+dRate.onclick = () => { mult = 1; showRate(); };
+dRate.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); dRate.click(); } };
+
+document.addEventListener("keydown", (e) => {
+  if (!roll) return;
+  const typing = /^(INPUT|TEXTAREA)$/.test(e.target.tagName);
+  if (typing) return;
+  if (e.key === " ") { e.preventDefault(); setPaused(!roll.paused); }
+  else if (e.key === "Escape") stopRoll();
+});
+
+/* A tab sent to the background stops getting frames; come back paused rather
+   than jumping forward. */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && roll && !roll.paused) setPaused(true);
+});
 
 /* ---------- plain-text version, for pasting anywhere ---------- */
 $("copy").onclick = () => {

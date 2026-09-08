@@ -699,6 +699,51 @@ export function lyricLines(text) {
   return out;
 }
 
+/**
+ * How far to scroll one song, and how fast, so its words go past the reader in
+ * the time the song actually lasts.
+ *
+ * The distance is the song's height less one screenful: the run ends with the
+ * last line at the bottom of the screen, not scrolled off the top of it. A song
+ * shorter than the screen has nowhere to go and reports a speed of zero rather
+ * than a division by nothing.
+ */
+export function scrollPlan(top, height, viewport, seconds) {
+  const from = Math.max(0, Number(top) || 0);
+  const to = Math.max(from, from + (Number(height) || 0) - (Number(viewport) || 0));
+  const secs = Number(seconds) > 0 ? Number(seconds) : 0;
+  const distance = to - from;
+  return { from, to, distance, pxPerSec: distance > 0 && secs > 0 ? distance / secs : 0 };
+}
+
+/** Keep the speed override inside what a person can actually read. */
+export function clampSpeed(mult) {
+  const n = Number(mult);
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(4, Math.max(0.25, Math.round(n * 100) / 100));
+}
+
+/**
+ * One frame of an autoscroll run: where the page should be dt seconds later,
+ * whether the song has finished, and what to show on the progress bar.
+ *
+ * Kept apart from the animation loop so the arithmetic can be tested without a
+ * browser — a loop driven by requestAnimationFrame can only be watched, not
+ * checked.
+ */
+export function advanceScroll(plan, pos, dt, mult) {
+  const speed = plan.pxPerSec * clampSpeed(mult);
+  const at = Math.min(plan.to, Math.max(plan.from, Number(pos) || 0));
+  const next = Math.min(plan.to, at + speed * Math.max(0, Number(dt) || 0));
+  const progress = plan.distance > 0 ? (next - plan.from) / plan.distance : 1;
+  return {
+    pos: next,
+    done: next >= plan.to,
+    progress: Math.max(0, Math.min(1, progress)),
+    remaining: speed > 0 ? (plan.to - next) / speed : 0,
+  };
+}
+
 /** Does this block need the monospace grid? Only chord rows require alignment. */
 export function hasChords(lines) {
   return (lines || []).some((l) => l && l.type === "chord");
@@ -758,6 +803,9 @@ const api = {
   expandChordPro,
   lyricLines,
   hasChords,
+  scrollPlan,
+  clampSpeed,
+  advanceScroll,
 };
 
 if (typeof window !== "undefined") window.Setlist = api;
