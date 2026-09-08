@@ -89,6 +89,27 @@
 @media (max-width:640px){
   #lb .toc{columns:1}
   #lb h1{font-size:24px}
+  #lb .wrap{padding:0 var(--s3)}
+
+  /* Four buttons of four different widths wrapped into a ragged block. An
+     even grid reads as one control bar; the primary action takes the top. */
+  #lb .bar{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)}
+  #lb .bar .btn{width:100%;text-align:center;padding:12px 10px}
+  #lb .bar #print{grid-column:1 / -1}
+  #lb .spacer{display:none}
+
+  /* Long tunings were breaking contents entries mid-line. The tuning gets its
+     own line, so every entry is title-then-tuning rather than ragged wrap. */
+  #lb .toc li{padding:7px 0;border-bottom:1px solid var(--line2);font-size:15px}
+  #lb .toc li:last-child{border-bottom:none}
+  #lb .toc .tune{display:block;font-size:11px;margin-top:3px;margin-left:26px;color:var(--faint)}
+
+  #lb .cover{padding:var(--s3)}
+  #lb .cover h2{font-size:18px}
+  #lb .song{padding:var(--s3)}
+  #lb .song h3{font-size:20px}
+  #lb .words{font-size:14px}
+  #lb .edit textarea{min-height:150px;font-size:12px}
 }
 
 /* One song per sheet of paper, black on white, no app furniture. */
@@ -219,7 +240,7 @@ function draw() {
     '<ol class="toc">' + list.map((r, i) => {
       const tune = tuningFor(S.tunings, r.name, r.artist);
       return '<li><span class="no">' + String(i + 1).padStart(2, "0") + '</span><b>' + esc(r.name) +
-        '</b> — ' + esc(r.artist) + (tune ? ' <span class="mono">[' + esc(tune) + ']</span>' : "") + '</li>';
+        '</b> — ' + esc(r.artist) + (tune ? ' <span class="tune mono">[' + esc(tune) + ']</span>' : "") + '</li>';
     }).join("") + '</ol>';
   book.appendChild(cover);
 
