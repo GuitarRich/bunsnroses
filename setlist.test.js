@@ -28,8 +28,14 @@ import {
   parseLyrics,
   lyricsFor,
   lyricBlocks,
+  isChordLine,
+  isSectionLine,
+  expandChordPro,
+  lyricLines,
+  hasChords,
   esc,
 } from "./setlist.js";
+import { chordShape, parseChord, stringsFor, fingering, TUNINGS } from "./chords.js";
 
 function song(partial) {
   return {
@@ -437,5 +443,169 @@ describe("esc", () => {
     assert.equal(esc(null), "");
     assert.equal(esc(undefined), "");
     assert.equal(esc(0), "0");
+  });
+});
+
+describe("chords", () => {
+  it("recognises chord symbols people actually write", () => {
+    for (const c of ["G", "Am", "C#m7", "Dsus4", "F#m7b5", "Cmaj7", "G/B", "Bb",
+                     "A7sus4", "Em9", "Ab/C", "Bm7/A", "Eb", "D°"]) {
+      assert.equal(isChordLine(c), true, c);
+    }
+  });
+
+  it("leaves lyrics alone even when they open with a note letter", () => {
+    for (const w of ["Bad", "Cage", "Gas", "Adam", "Balm", "Cause", "Aim", "Dad",
+                     "Gem", "Add", "Aug", "Bass", "Fade", "Dance",
+                     "Someone left the cake out in the rain",
+                     "Am I the only one who cares"]) {
+      assert.equal(isChordLine(w), false, w);
+    }
+    assert.equal(isChordLine(""), false);
+    assert.equal(isChordLine("   "), false);
+  });
+
+  it("reads a chord line with bars and repeat marks", () => {
+    assert.equal(isChordLine("G      D       Em     C"), true);
+    assert.equal(isChordLine("| Am | F | C | G  x2"), true);
+    assert.equal(isChordLine("N.C."), false);   // no real chord on the line
+    assert.equal(isChordLine("| | |"), false);
+  });
+
+  it("tells a section label from a chord in brackets", () => {
+    for (const t of ["[Chorus]", "Verse 2", "(Solo)", "Pre-Chorus", "Intro", "Middle 8"]) {
+      assert.equal(isSectionLine(t), true, t);
+    }
+    assert.equal(isSectionLine("[G]"), false);
+    assert.equal(isSectionLine("[Am7]"), false);
+    assert.equal(isSectionLine("Bridge over troubled water"), false);
+    assert.equal(isSectionLine(""), false);
+  });
+
+  it("expands inline ChordPro into a chord row over the words", () => {
+    const r = expandChordPro("[G]Someone left the [D]cake out");
+    assert.equal(r.words, "Someone left the cake out");
+    assert.equal(r.chords, "G                D");
+    assert.equal(r.chords.indexOf("D"), r.words.indexOf("cake"));
+  });
+
+  it("never lets two inline chords touch", () => {
+    const r = expandChordPro("[C][G]go");
+    assert.equal(r.words, "go");
+    assert.equal(r.chords, "C G");
+  });
+
+  it("passes plain text and bracketed labels through untouched", () => {
+    assert.equal(expandChordPro("just some words"), null);
+    assert.equal(expandChordPro("[Chorus] words"), null);
+    assert.equal(expandChordPro(""), null);
+  });
+
+  it("types every line of a block so the book can style them apart", () => {
+    assert.deepEqual(lyricLines("[Chorus]\nG       D\nHello there"), [
+      { type: "section", text: "Chorus" },
+      { type: "chord", text: "G       D" },
+      { type: "words", text: "Hello there" },
+    ]);
+    assert.deepEqual(lyricLines("plain words"), [{ type: "words", text: "plain words" }]);
+    assert.equal(lyricLines("")[0].type, "gap");
+  });
+
+  it("flags only the blocks that need the monospace grid", () => {
+    assert.equal(hasChords(lyricLines("G  D\nwords")), true);
+    assert.equal(hasChords(lyricLines("[Chorus]\njust words")), false);
+    assert.equal(hasChords([]), false);
+  });
+});
+
+describe("chord shapes", () => {
+  const E = TUNINGS["e standard"];
+  const grid = (sym, strings) => {
+    const s = chordShape(sym, strings || E);
+    return s ? s.frets.map((f) => (f < 0 ? "x" : f)).join("") : null;
+  };
+
+  it("finds the shape a guitarist would actually play", () => {
+    const want = {
+      C: "x32010", Am: "x02210", G: "320003", D: "xx0232", E: "022100",
+      Em: "022000", Dm: "xx0231", A: "x02220", A7: "x02020", E7: "020100",
+      D7: "xx0212", G7: "320001", Cmaj7: "x32000", Am7: "x02010", Em7: "020000",
+      "G/B": "x20003", "C/G": "332010",
+    };
+    for (const [sym, frets] of Object.entries(want)) assert.equal(grid(sym), frets, sym);
+  });
+
+  it("reaches for a barre only when the shape needs one", () => {
+    assert.equal(chordShape("D", E).barre, null);       // xx0232 is three fingers
+    assert.equal(chordShape("A7", E).barre, null);      // x02020, index and ring
+    assert.equal(grid("F"), "133211");
+    assert.equal(chordShape("F", E).barre.fret, 1);
+    assert.equal(grid("Bm"), "x24432");
+    assert.equal(chordShape("Bm", E).barre.fret, 2);
+  });
+
+  it("puts the bass of a slash chord on the lowest string that sounds", () => {
+    const g = chordShape("G/B", E);
+    const low = g.frets.findIndex((f) => f >= 0);
+    assert.equal((E[low] + g.frets[low]) % 12, 11);     // B
+    const c = chordShape("C/G", E);
+    const lowC = c.frets.findIndex((f) => f >= 0);
+    assert.equal((E[lowC] + c.frets[lowC]) % 12, 7);    // G
+  });
+
+  it("works the shapes out again for a different tuning", () => {
+    // Everything moves a fret when the whole guitar is a semitone down.
+    assert.equal(grid("Eb", TUNINGS["eb standard"]), grid("E", E));
+    assert.notEqual(grid("D", TUNINGS["drop d"]), grid("D", E));
+    assert.equal(grid("D", TUNINGS["drop d"]), "000232");
+  });
+
+  it("reads the tuning tags the sheet actually contains", () => {
+    assert.deepEqual(stringsFor("E standard"), TUNINGS["e standard"]);
+    assert.deepEqual(stringsFor("E standard (riff is bass)"), TUNINGS["e standard"]);
+    assert.deepEqual(stringsFor("Drop D"), TUNINGS["drop d"]);
+    assert.deepEqual(stringsFor("Half step down"), TUNINGS["eb standard"]);
+    assert.deepEqual(stringsFor(""), TUNINGS["e standard"]);
+    assert.deepEqual(stringsFor("nonsense"), TUNINGS["e standard"]);
+  });
+
+  it("reads the notes out of a chord symbol", () => {
+    assert.deepEqual([...parseChord("C").pcs].sort((a, b) => a - b), [0, 4, 7]);
+    assert.deepEqual([...parseChord("Am").pcs].sort((a, b) => a - b), [0, 4, 9]);
+    assert.deepEqual([...parseChord("G7").pcs].sort((a, b) => a - b), [2, 5, 7, 11]);
+    assert.equal(parseChord("C5").third, null);        // power chord has no third
+    assert.equal(parseChord("Csus4").third, 5);
+    assert.equal(parseChord("G/B").slash, true);
+    assert.equal(parseChord("G/B").bass, 11);
+    assert.equal(parseChord("H"), null);
+    assert.equal(parseChord("Cwobble"), null);
+  });
+
+  it("never asks for a fifth finger", () => {
+    for (const sym of ["C", "F", "Bb", "Bm", "F#m", "Ab", "Eb", "B7", "C#m", "Bbm", "Dm7"]) {
+      const s = chordShape(sym, E);
+      assert.ok(s, sym);
+      assert.ok(Math.max(...s.fingers) <= 4, sym + " needs " + Math.max(...s.fingers) + " fingers");
+      const fretted = s.frets.filter((f) => f > 0);
+      assert.ok(Math.max(...fretted) - Math.min(...fretted) <= 3, sym + " spans too far");
+    }
+  });
+
+  it("keeps open strings out of shapes played up the neck", () => {
+    for (const sym of ["C", "F", "Bb", "Eb", "Ab", "C#m", "F#", "B7", "D5"]) {
+      const s = chordShape(sym, E);
+      const fretted = s.frets.filter((f) => f > 0);
+      if (fretted.length && Math.max(...fretted) > 5) {
+        assert.ok(!s.frets.includes(0), sym + " mixes open strings with a high position");
+      }
+    }
+  });
+
+  it("gives the barre finger 1 and hands the rest out low fret first", () => {
+    const f = fingering([1, 3, 3, 2, 1, 1]);
+    assert.deepEqual(f.fingers, [1, 3, 4, 2, 1, 1]);
+    assert.deepEqual(f.barre, { fret: 1, from: 0, to: 5 });
+    assert.deepEqual(fingering([-1, 0, 2, 2, 1, 0]).fingers, [0, 0, 2, 3, 1, 0]);
+    assert.equal(fingering([0, 0, 0, 0, 0, 0]).count, 0);
   });
 });

@@ -550,6 +550,140 @@ export function lyricBlocks(text) {
     .filter((b) => b.trim().length);
 }
 
+/* ---------- chords ---------- */
+
+/**
+ * One chord symbol: root, accidental, quality, extensions, optional bass note.
+ *
+ * Deliberately built from named atoms rather than a loose character class,
+ * because the book uses it to decide whether a whole LINE is chords rather
+ * than words. A pattern like /^[A-G][a-z#b0-9]*$/ greys out real lyrics —
+ * "Bad", "Cage", "Gas" all start with a note letter.
+ */
+const CHORD_QUAL = "(?:maj|Maj|min|Min|dim|Dim|aug|Aug|sus|add|alt|m|M|°|ø|\\+|-)";
+const CHORD_EXT = "(?:[#b♯♭]?(?:13|11|2|4|5|6|7|9))";
+const CHORD_RE = new RegExp(
+  "^[A-G][#b♯♭]?" +
+    "(?:" + CHORD_QUAL + "|" + CHORD_EXT + "|\\((?:" + CHORD_EXT + ")\\))*" +
+    "(?:\\/[A-G][#b♯♭]?)?$"
+);
+
+/** Things that share a chord line without being chords: bars, repeats, N.C. */
+const CHORD_FILLER_RE = /^(?:\|+|:\|+|\|+:|x ?\d+|\(x ?\d+\)|[-–—/%.,]+|N\.?C\.?|[()])$/i;
+
+const SECTION_NAMES =
+  "intro|verse|pre[- ]?chorus|chorus|refrain|bridge|middle ?8|instrumental|interlude|" +
+  "solo|riff|breakdown|outro|ending|coda|tag|hook|link|vamp|repeat|acappella|a cappella";
+const SECTION_FULL_RE = new RegExp("^(?:" + SECTION_NAMES + ")(?: ?\\d+| [A-Za-z])?$", "i");
+
+/** Strip one layer of brackets and a trailing colon from a label. */
+function bare(line) {
+  return String(line || "")
+    .trim()
+    .replace(/^[[({]\s*/, "")
+    .replace(/\s*[\])}]$/, "")
+    .replace(/:$/, "")
+    .trim();
+}
+
+/** True for "[Chorus]", "Verse 2", "(Solo)" — not for "Bridge over troubled water". */
+export function isSectionLine(line) {
+  const t = String(line || "").trim();
+  if (!t) return false;
+  const inner = bare(t);
+  if (!inner || inner.length > 40) return false;
+  // Anything bracketed that isn't a chord is a label: [Chorus] yes, [G] no.
+  if (/^[[({]/.test(t) && /[\])}]$/.test(t)) return !CHORD_RE.test(inner);
+  return SECTION_FULL_RE.test(inner);
+}
+
+/** Is one token a chord symbol? Exported so the book can make each one tappable. */
+export function isChord(tok) {
+  return CHORD_RE.test(String(tok || "").trim());
+}
+
+/**
+ * True when a line is nothing but chord symbols. Every token has to be a chord
+ * or a bar/repeat mark, and at least one has to be a real chord, so a lyric
+ * that happens to open with "Am" doesn't turn the whole line amber.
+ */
+export function isChordLine(line) {
+  const t = String(line || "").trim();
+  if (!t) return false;
+  let chords = 0;
+  for (const tok of t.split(/\s+/)) {
+    if (CHORD_RE.test(tok)) { chords++; continue; }
+    if (CHORD_FILLER_RE.test(tok)) continue;
+    return false;
+  }
+  return chords > 0;
+}
+
+/**
+ * Expand inline ChordPro ("[G]Someone left the [D]cake out") into the
+ * chord-line-above-words-line pair that Ultimate Guitar and paper songbooks
+ * use, so both ways of writing a song render the same way.
+ *
+ * Returns null when the line has no inline chords, so plain text and bracketed
+ * section labels fall straight through untouched.
+ */
+export function expandChordPro(line) {
+  const src = String(line || "");
+  if (!/\[[^\]]*\]/.test(src)) return null;
+
+  let chords = "";
+  let words = "";
+  let found = 0;
+  let last = 0;
+  const re = /\[([^\]]*)\]/g;
+  let m;
+  while ((m = re.exec(src))) {
+    words += src.slice(last, m.index);
+    last = m.index + m[0].length;
+    const sym = m[1].trim();
+    if (!sym) continue;
+    if (!CHORD_RE.test(sym)) { words += m[0]; continue; }  // [Chorus] is not a chord
+    found++;
+    // Two chords must never touch, and a chord sits over the syllable that
+    // followed it in the source.
+    if (chords.length && chords.length >= words.length) chords += " ";
+    while (chords.length < words.length) chords += " ";
+    chords += sym;
+  }
+  words += src.slice(last);
+  if (!found) return null;
+  return { chords: chords.replace(/\s+$/, ""), words: words.replace(/\s+$/, "") };
+}
+
+/**
+ * One lyric block -> typed lines, so the book can style chords apart from
+ * words and keep a chord row sitting over its syllable.
+ */
+export function lyricLines(text) {
+  const out = [];
+  String(text == null ? "" : text)
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .forEach((raw) => {
+      const line = raw.replace(/\s+$/, "");
+      if (!line.trim()) { out.push({ type: "gap", text: "" }); return; }
+      if (isSectionLine(line)) { out.push({ type: "section", text: bare(line) }); return; }
+      const pro = expandChordPro(line);
+      if (pro) {
+        if (pro.chords.trim()) out.push({ type: "chord", text: pro.chords });
+        if (pro.words.trim()) out.push({ type: "words", text: pro.words });
+        return;
+      }
+      out.push({ type: isChordLine(line) ? "chord" : "words", text: line });
+    });
+  return out;
+}
+
+/** Does this block need the monospace grid? Only chord rows require alignment. */
+export function hasChords(lines) {
+  return (lines || []).some((l) => l && l.type === "chord");
+}
+
 const api = {
   WEIGHTS,
   TARGET_SONGS,
@@ -597,6 +731,12 @@ const api = {
   parseLyrics,
   lyricsFor,
   lyricBlocks,
+  isSectionLine,
+  isChord,
+  isChordLine,
+  expandChordPro,
+  lyricLines,
+  hasChords,
 };
 
 if (typeof window !== "undefined") window.Setlist = api;

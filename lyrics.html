@@ -84,9 +84,44 @@
   color:var(--dim)}
 #lb .tag.tune{color:var(--lamp);border-color:rgba(245,166,35,.45)}
 #lb .no{font-family:'IBM Plex Mono',monospace;color:var(--lamp);font-size:13px}
-#lb .words{margin-top:var(--s3);white-space:pre-wrap;font-size:15px;line-height:1.75}
+#lb .words{margin-top:var(--s3);font-size:15px;line-height:1.75}
 #lb .block{break-inside:avoid;page-break-inside:avoid;margin-bottom:1.1em}
 #lb .block:last-child{margin-bottom:0}
+#lb .ln{white-space:pre-wrap}
+#lb .ln-gap{height:.6em}
+/* A chorded verse is a grid, not prose: a chord only means anything sitting
+   exactly over its syllable. So the whole block goes monospace and scrolls
+   sideways rather than wrapping and losing the alignment. Blocks with no
+   chords keep the proportional reading face. */
+#lb .block.chorded{font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.3;
+  overflow-x:auto;overflow-y:hidden}
+#lb .block.chorded .ln{white-space:pre}
+/* A chord row belongs to the line under it, so the air goes above the pair,
+   not between the two halves of it — otherwise every chord looks equidistant
+   between the line above and the line below and you can't tell which it's for. */
+#lb .block.chorded .ln-chord{margin-top:.75em}
+#lb .block.chorded .ln-chord:first-child,
+#lb .block.chorded .ln-section + .ln-chord{margin-top:0}
+#lb .ln-chord{color:var(--lamp);font-weight:500}
+/* The chip's padding is cancelled by an equal negative margin, so the box can
+   be seen without shifting the character it sits over — the chord row only
+   means anything while it stays in the monospace grid. */
+#lb .chip{font:inherit;color:inherit;padding:1px 3px;margin:-1px -3px;border-radius:3px;
+  background:rgba(245,166,35,.13);cursor:pointer;-webkit-tap-highlight-color:transparent}
+#lb .chip:hover,#lb .chip:focus-visible,#lb .chip[aria-expanded="true"]{background:rgba(245,166,35,.3);
+  outline:none;color:#FFD98A}
+
+#lb .pop{position:fixed;z-index:50;background:var(--panel2);border:1px solid var(--line);
+  border-radius:var(--r);box-shadow:0 10px 30px rgba(0,0,0,.55);padding:10px 12px 8px;
+  width:132px;text-align:center;pointer-events:none}
+#lb .pop .pname{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:500;
+  color:var(--lamp);margin-bottom:6px}
+#lb .pop svg{display:block;margin:0 auto}
+#lb .pop .ptune{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;
+  letter-spacing:.12em;font-size:9px;color:var(--faint);margin-top:6px}
+#lb .pop .pnone{font-size:12px;color:var(--dim);padding:6px 0}
+#lb .ln-section{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;
+  letter-spacing:.14em;font-size:12px;font-weight:600;color:var(--dim);margin-bottom:5px}
 #lb .missing{margin-top:var(--s3);font-size:14px;color:var(--dim);font-style:italic}
 
 #lb .edit{margin-top:var(--s3);padding-top:var(--s3);border-top:1px solid var(--line2)}
@@ -124,6 +159,10 @@
   #lb .song{padding:var(--s3)}
   #lb .song h3{font-size:20px}
   #lb .words{font-size:14px}
+  #lb .block.chorded{font-size:11.5px}
+  /* A finger has to land on the chip, so it gets real height on a phone
+     without taking any width — width is what holds the grid together. */
+  #lb .chip{padding:5px 3px;margin:-5px -3px}
   #lb .edit textarea{min-height:150px;font-size:12px}
 }
 
@@ -151,6 +190,12 @@
   #lb .tag.tune{color:#000;border-color:#666;font-weight:700}
   #lb .no{color:#000}
   #lb .words{font-size:11.5pt;line-height:1.6}
+  /* Amber prints as pale grey, so chords carry on the page by weight instead. */
+  #lb .block.chorded{font-size:9pt;line-height:1.45;overflow:visible}
+  #lb .ln-chord{color:#000;font-weight:700}
+  #lb .ln-section{color:#000}
+  #lb .chip{background:none;padding:0;margin:0;color:#000}
+  #lb .pop{display:none!important}
   #lb .edit,#lb .src{display:none!important}
 }
 </style>
@@ -191,8 +236,11 @@
       <p class="note noprint" style="margin-top:var(--s4)">
         Paste each song's words into its box and hit <b>Save</b> — it writes straight to the
         <b>Lyrics</b> tab of the band sheet, so everyone sees it. You can type into that tab
-        directly instead if you'd rather. Print with backgrounds off for a clean black-on-white
-        book; each song starts on its own page.
+        directly instead if you'd rather. <b>Chords go in the same box:</b> paste an Ultimate
+        Guitar tab as-is and the chord lines are picked out and held over the words, or write
+        them inline as <span class="mono">[G]like this</span>. Hover or tap any chord to see how
+        it's fingered — in that song's tuning, not standard. Print with backgrounds off for a
+        clean black-on-white book; each song starts on its own page.
       </p>
     </div>
   </div>
@@ -203,7 +251,9 @@ import { VERSION } from "./catalog.js";
 import {
   TARGET_SONGS, MAX_PER_ARTIST,
   scoreSongs, generateSet, mmss, tuningFor, lyricsFor, lyricBlocks, searchLinks,
+  lyricLines, hasChords, isChord,
 } from "./setlist.js";
+import { chordShape, stringsFor } from "./chords.js";
 import { S, pull } from "./store.js";
 
 const $ = (id) => document.getElementById(id);
@@ -252,6 +302,35 @@ function heading(r, i) {
     '<div class="by">' + esc(r.artist) + '</div>';
 }
 
+/**
+ * Every chord on a chord row becomes its own tappable chip. Whitespace between
+ * the tokens is passed through untouched — it is what holds a chord over its
+ * syllable — and the tokens themselves are escaped like everything else.
+ */
+function chips(line) {
+  return String(line).replace(/\S+/g, (tok) =>
+    isChord(tok)
+      ? '<button class="chip" type="button" aria-expanded="false" data-chord="' +
+        esc(tok) + '">' + esc(tok) + '</button>'
+      : esc(tok));
+}
+
+/**
+ * Words for one song, with chord rows kept above the syllables they belong to.
+ * Both formats the band is likely to paste land here: Ultimate Guitar's
+ * chords-on-their-own-line, and ChordPro's inline [G] brackets, which
+ * lyricLines() expands into the same shape.
+ */
+function renderWords(text) {
+  return '<div class="words">' + lyricBlocks(text).map((b) => {
+    const lines = lyricLines(b);
+    return '<div class="block' + (hasChords(lines) ? " chorded" : "") + '">' +
+      lines.map((l) => '<div class="ln ln-' + l.type + '">' +
+        (l.type === "chord" ? chips(l.text) : esc(l.text)) + '</div>').join("") +
+      '</div>';
+  }).join("") + '</div>';
+}
+
 function draw() {
   const gen = buildSet();
   const book = $("book");
@@ -277,14 +356,17 @@ function draw() {
     const words = lyricsFor(LYRICS, r.name, r.artist);
     const el = document.createElement("section");
     el.className = "song";
+    // The diagrams are drawn against this song's strings, not standard tuning:
+    // half this set is in Drop D or Eb, where the standard shapes are wrong.
+    el.dataset.tuning = tuningFor(S.tunings, r.name, r.artist) || "E standard";
     el.innerHTML = heading(r, i) +
       '<div class="meta"><span class="tag">' + mmss(r.dur) + '</span>' +
       (r.year ? '<span class="tag">' + esc(r.year) + '</span>' : "") +
       '<a class="src noprint" target="_blank" rel="noopener noreferrer" href="' +
-        esc(searchLinks(r).genius) + '">Look up the words</a></div>' +
-      (words
-        ? '<div class="words">' + lyricBlocks(words).map((b) => '<div class="block">' + esc(b) + '</div>').join("") + '</div>'
-        : '<p class="missing">No lyrics saved for this one yet.</p>');
+        esc(searchLinks(r).genius) + '">Look up the words</a>' +
+      '<a class="src noprint" target="_blank" rel="noopener noreferrer" href="' +
+        esc(searchLinks(r).ug) + '">Look up the chords</a></div>' +
+      (words ? renderWords(words) : '<p class="missing">No lyrics saved for this one yet.</p>');
     el.appendChild(editor(r, words));
     book.appendChild(el);
   });
@@ -328,8 +410,12 @@ function editor(r, words) {
 
   const ta = document.createElement("textarea");
   ta.value = words || "";
-  ta.placeholder = "Paste the words for " + r.name + " here.\n\nLeave a blank line between verses — " +
-    "the book keeps each one whole instead of splitting it across a page.";
+  ta.placeholder = "Paste the words for " + r.name + " here — chords too, if you have them.\n\n" +
+    "Leave a blank line between verses; the book keeps each one whole instead of splitting it\n" +
+    "across a page. Chords work either way round:\n\n" +
+    "  G           D          Em\n" +
+    "  Someone left the cake out in the rain\n\n" +
+    "or inline: [G]Someone left the [D]cake out in the [Em]rain";
   ta.spellcheck = false;
   ta.oninput = () => { editing[r.k] = true; };
 
@@ -383,6 +469,142 @@ function editor(r, words) {
   wrap.appendChild(bar);
   return wrap;
 }
+
+/* ---------- chord boxes ---------- */
+
+/**
+ * A chord diagram as SVG. Six strings across, five frets down, drawn against
+ * the nut when the shape sits in first position and labelled with a fret
+ * number when it doesn't.
+ */
+function diagram(shape) {
+  const N = shape.frets.length;
+  const ROWS = 5;
+  const GAP = 17, ROW = 16, L = 22, T = 22;
+  const W = L + (N - 1) * GAP + 14;
+  const H = T + ROWS * ROW + 16;
+  const x = (i) => L + i * GAP;
+  const y = (fret) => T + (fret - shape.baseFret + 0.5) * ROW;
+  const p = [];
+
+  // grid
+  for (let i = 0; i < N; i++) {
+    p.push('<line x1="' + x(i) + '" y1="' + T + '" x2="' + x(i) + '" y2="' + (T + ROWS * ROW) +
+      '" stroke="currentColor" stroke-width="1" opacity=".55"/>');
+  }
+  for (let f = 0; f <= ROWS; f++) {
+    p.push('<line x1="' + x(0) + '" y1="' + (T + f * ROW) + '" x2="' + x(N - 1) + '" y2="' +
+      (T + f * ROW) + '" stroke="currentColor" stroke-width="1" opacity=".55"/>');
+  }
+  if (shape.baseFret === 1) {
+    p.push('<rect x="' + (x(0) - 1) + '" y="' + (T - 4) + '" width="' + ((N - 1) * GAP + 2) +
+      '" height="4" fill="currentColor"/>');
+  } else {
+    p.push('<text x="' + (x(0) - 7) + '" y="' + (T + ROW * 0.7) + '" text-anchor="end" ' +
+      'font-size="10" fill="currentColor" opacity=".7">' + shape.baseFret + '</text>');
+  }
+
+  // open and muted strings, above the nut
+  shape.frets.forEach((f, i) => {
+    if (f > 0) return;
+    p.push('<text x="' + x(i) + '" y="' + (T - 7) + '" text-anchor="middle" font-size="10" ' +
+      'fill="currentColor" opacity=".75">' + (f === 0 ? "o" : "×") + '</text>');
+  });
+
+  if (shape.barre) {
+    const b = shape.barre;
+    p.push('<rect x="' + (x(b.from) - 5) + '" y="' + (y(b.fret) - 5) + '" width="' +
+      ((b.to - b.from) * GAP + 10) + '" height="10" rx="5" fill="currentColor"/>');
+  }
+  shape.frets.forEach((f, i) => {
+    if (f <= 0) return;
+    if (shape.barre && f === shape.barre.fret) return;   // already under the bar
+    p.push('<circle cx="' + x(i) + '" cy="' + y(f) + '" r="5" fill="currentColor"/>');
+  });
+
+  // finger numbers under the box
+  shape.fingers.forEach((n, i) => {
+    if (!n) return;
+    p.push('<text x="' + x(i) + '" y="' + (T + ROWS * ROW + 12) + '" text-anchor="middle" ' +
+      'font-size="10" fill="currentColor" opacity=".7">' + n + '</text>');
+  });
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H +
+    '" role="img" aria-label="' + esc(shape.name) + ' chord shape">' + p.join("") + '</svg>';
+}
+
+/* Shapes are searched, not looked up, so each one is worked out once. */
+const shapeCache = new Map();
+function shapeFor(name, tuning) {
+  const key = tuning + "|" + name;
+  if (!shapeCache.has(key)) shapeCache.set(key, chordShape(name, stringsFor(tuning)));
+  return shapeCache.get(key);
+}
+
+const pop = document.createElement("div");
+pop.className = "pop hide";
+$("lb").appendChild(pop);
+let pinned = null;
+
+function hidePop() {
+  pop.classList.add("hide");
+  if (pinned) pinned.setAttribute("aria-expanded", "false");
+  pinned = null;
+}
+
+function showPop(chip) {
+  const name = chip.dataset.chord;
+  const song = chip.closest(".song");
+  const tuning = (song && song.dataset.tuning) || "E standard";
+  const shape = shapeFor(name, tuning);
+  pop.innerHTML = '<div class="pname">' + esc(name) + '</div>' +
+    (shape ? diagram(shape) : '<div class="pnone">No shape for this one.</div>') +
+    '<div class="ptune">' + esc(tuning) + '</div>';
+  pop.classList.remove("hide");
+
+  // Fixed position off the chip's own rectangle: the chord row scrolls
+  // sideways inside the block, which would clip anything positioned within it.
+  const r = chip.getBoundingClientRect();
+  const box = pop.getBoundingClientRect();
+  let left = r.left + r.width / 2 - box.width / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - box.width - 8));
+  const above = r.top - box.height - 8;
+  pop.style.left = left + "px";
+  pop.style.top = (above > 8 ? above : r.bottom + 8) + "px";
+}
+
+const canHover = window.matchMedia && window.matchMedia("(hover:hover)").matches;
+const book = $("book");
+
+book.addEventListener("click", (e) => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  if (pinned === chip) { hidePop(); return; }
+  hidePop();
+  pinned = chip;
+  chip.setAttribute("aria-expanded", "true");
+  showPop(chip);
+});
+
+if (canHover) {
+  book.addEventListener("mouseover", (e) => {
+    const chip = e.target.closest(".chip");
+    if (!chip || pinned) return;
+    showPop(chip);
+  });
+  book.addEventListener("mouseout", (e) => {
+    if (pinned) return;
+    const chip = e.target.closest(".chip");
+    if (chip && !chip.contains(e.relatedTarget)) pop.classList.add("hide");
+  });
+}
+
+document.addEventListener("click", (e) => {
+  if (pinned && !e.target.closest(".chip")) hidePop();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hidePop(); });
+window.addEventListener("scroll", hidePop, true);
+window.addEventListener("resize", hidePop);
 
 /* ---------- plain-text version, for pasting anywhere ---------- */
 $("copy").onclick = () => {
