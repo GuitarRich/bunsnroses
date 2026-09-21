@@ -65,16 +65,28 @@ export const TRACKS=[
 ["Medication","Queens of the Stone Age",114,2002,165,2,4,"",""],
 ["Slither","Velvet Revolver",248,2004,141,2,4,"",""],
 ["Little Sister","Queens of the Stone Age",174,2005,161,2,4,"",""],
-["Make It Wit Chu","Queens of the Stone Age",290,2007,91,2,2,"slow",""]
+["Make It Wit Chu","Queens of the Stone Age",290,2007,91,2,2,"slow",""],
+/* added after v28 — appended, never inserted, so b0..b62 keep pointing at the same songs */
+["Ramble On","Led Zeppelin",263,1969,100,1,3,"",""],
+["You Really Got Me","Van Halen",158,1978,138,1,5,"opener",""],
+["Summer of '69","Bryan Adams",216,1984,139,1,4,"",""],
+["Welcome to the Jungle","Guns N' Roses",273,1987,123,1,5,"opener",""],
+["Runnin' Down a Dream","Tom Petty",263,1989,120,1,4,"",""],
+["In Bloom","Nirvana",254,1991,78,2,4,"",""],
+["Zombie","The Cranberries",306,1994,84,2,3,"",""],
+["Learn to Fly","Foo Fighters",238,1999,136,2,4,"",""],
+["I Believe in a Thing Called Love","The Darkness",217,2003,132,2,5,"",""],
+["Do I Wanna Know?","Arctic Monkeys",272,2013,85,2,3,"slow",""]
 ];
 
 export const BAND = ["Rich", "Joel", "Anders", "Pete"];
 export const OWNER = "Rich";            // only this person edits songs and the setlist
-export const VERSION = "v28";
+export const VERSION = "v29";
 export const LABEL = { 3: "Must play", 2: "Yes", 1: "Maybe", 0: "Pass" };
 export const NB = TRACKS.length;        // built-in count (code positions never change)
 
 export const CHANGES = {
+ "v29":"Ten songs added to the pool — Ramble On, You Really Got Me, Summer of '69, Welcome to the Jungle, Runnin' Down a Dream, In Bloom, Zombie, Learn to Fly, I Believe in a Thing Called Love and Do I Wanna Know?",
  "v25":"Lyric book header now matches the other two pages exactly — full-width bar, lit lamp, and a real saved indicator",
  "v24":"Actually usable on a phone — the pages were missing the viewport tag, so mobiles were shrinking the desktop layout to fit. Lyric book laid out for a phone too",
  "v23":"Set rows fixed on a phone — one line each, score and chevron back in place, and the dead drag handle gone",
