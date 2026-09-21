@@ -97,6 +97,11 @@
 #ck .stage .dot.one{background:rgba(237,230,214,.34)}
 #ck .stage .ctl{display:flex;gap:var(--s2);flex-wrap:wrap;justify-content:center;align-items:center}
 #ck .stage .btn{background:rgba(237,230,214,.07);border-color:rgba(237,230,214,.22);padding:12px 18px;font-size:14px}
+/* The stage rule above overrides .go's background but not its near-black text,
+   which left Start/Stop unreadable. The primary control keeps the amber pill. */
+#ck .stage .btn.go{background:var(--lamp);border-color:var(--lamp);color:#1B1710}
+#ck .stage .btn.go:hover{color:#1B1710;filter:brightness(1.08)}
+#ck .stage .warn{color:var(--lamp)}
 #ck .stage .step{font-family:'IBM Plex Mono',monospace;font-size:20px;min-width:52px}
 #ck .stage .bars{font-family:'IBM Plex Mono',monospace;color:var(--dim);font-size:14px;letter-spacing:.1em}
 #ck .stage .hint{color:var(--faint);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
@@ -269,6 +274,7 @@ const LOOKAHEAD = 0.12;   // seconds of beats booked at a time
 const TICK = 25;          // ms between passes
 
 let ctx = null;           // AudioContext, made on the first start (needs a gesture)
+let noAudio = false;      // this browser has no Web Audio at all
 let run = null;           // the running click, or null
 let cur = -1;             // index into songs
 let bpm = 0, beats = 4;
@@ -277,19 +283,87 @@ let taps = [];
 let wake = null;
 let timer = null;
 
+/**
+ * The audio context, made on the first tap and kept awake after that.
+ *
+ * A phone needs more persuading than a laptop:
+ *  - the context may only be created and resumed inside a real gesture, so
+ *    this is called from the tap that starts the click and nowhere else;
+ *  - iOS routes Web Audio through the "ambient" session, which the physical
+ *    ring/silent switch mutes — a phone on silent plays nothing at all, with
+ *    no error to show for it. Asking for the "playback" session is what makes
+ *    the click ignore that switch;
+ *  - a context can come back "interrupted" after a call or a lock screen, so
+ *    the state is checked again every time the click starts.
+ */
 function audio() {
   if (!ctx) {
     const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
+    if (!AC) { noAudio = true; return null; }
     ctx = new AC();
   }
-  if (ctx.state === "suspended") ctx.resume();
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = "playback";
+  } catch (e) { /* older iOS: the silent switch wins, and the lamp carries it */ }
+  if (ctx.state !== "running") ctx.resume().catch(() => {});
   return ctx;
+}
+
+/**
+ * Some phones only really start the clock once something has been played from
+ * inside the gesture itself. A silent blip costs nothing and does that.
+ */
+function primeAudio(c) {
+  if (!c || c.__woken) return;
+  try {
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    gain.gain.value = 0;
+    osc.connect(gain).connect(c.destination);
+    osc.start();
+    osc.stop(c.currentTime + 0.01);
+    c.__woken = true;
+  } catch (e) {}
+}
+
+/** Say so when the device is holding the sound back, rather than looking broken. */
+function soundNote() {
+  const el = $("sHint");
+  if (noAudio) {
+    el.classList.add("warn");
+    el.textContent = "This browser makes no sound — the lamp still flashes";
+    return;
+  }
+  const blocked = ctx && ctx.state !== "running";
+  el.classList.toggle("warn", !!blocked);
+  el.textContent = blocked
+    ? "Sound is blocked — tap Start again, and check the phone's silent switch"
+    : muted
+      ? "Sound off · Space start · ↑↓ tempo · T tap · Esc out"
+      : "Space start · ↑↓ tempo · T tap · Esc out";
+}
+
+/** Is the audio clock actually running, or is the device holding it back? */
+function audioLive() {
+  return !!ctx && ctx.state === "running";
+}
+
+/**
+ * The clock the beats are counted against.
+ *
+ * The audio clock when there is one — it is the only one accurate enough to
+ * book a click against. When the device won't let the sound through, a phone
+ * on silent or a context still waiting on a gesture, the wall clock takes over
+ * so the lamp keeps flashing: a drummer can play to the light alone, and a
+ * dead screen would look like a broken page.
+ */
+function clockNow() {
+  return audioLive() ? ctx.currentTime : performance.now() / 1000;
 }
 
 /** One click: a short pitched blip, higher and louder on the 1. */
 function blip(at, accent) {
-  if (muted || !ctx) return;
+  if (muted || !audioLive()) return;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.frequency.value = accent ? 1600 : 950;
@@ -321,28 +395,41 @@ function flash(pos) {
 }
 
 function tick() {
-  if (!run || !ctx) return;
-  const now = ctx.currentTime;
+  if (!run) return;
+  // The sound arriving late — a phone that finally let the context run — means
+  // the clock underneath has changed. Re-base rather than mixing the two.
+  if (audioLive() !== run.live) { retime(); return; }
+
+  const now = clockNow();
   const due = beatsDue(run.plan, run.at, now + LOOKAHEAD, run.zero);
   due.forEach((b) => {
+    // A beat whose moment has already gone — the tab was throttled, the phone
+    // was locked, the context stalled — is dropped rather than fired late. A
+    // burst of catch-up clicks is worse than a missing one.
+    if (clockNow() - b.at > run.plan.spb * 0.5) return;
     blip(b.at, b.accent);
     // The lamp is driven off the same booked time as the sound, so the two
     // can't slide apart.
-    setTimeout(() => flash(b), Math.max(0, (b.at - ctx.currentTime) * 1000));
+    setTimeout(() => flash(b), Math.max(0, (b.at - clockNow()) * 1000));
   });
   run.at = now + LOOKAHEAD;
 }
 
 function start() {
-  const c = audio();
-  if (!c) { say("<b>This browser won't make a click.</b> The lamp still flashes.", true); }
   if (!bpm) return;
-  run = { plan: beatPlan(bpm, beats), zero: (c ? c.currentTime : 0) + 0.12, at: 0 };
-  run.at = run.zero;
+  const c = audio();
+  primeAudio(c);
+  // Never wait on the audio to start the lamp: on a phone the resume can be
+  // refused outright, and a dark screen is worse than a silent one.
+  const zero = clockNow() + 0.12;
+  run = { plan: beatPlan(bpm, beats), zero, at: zero, live: audioLive() };
   if (timer) clearInterval(timer);
   timer = setInterval(tick, TICK);
   $("sRun").textContent = "Stop";
   keepAwake();
+  soundNote();
+  // If the context wakes up a moment later, the next tick notices and re-bases.
+  if (c && c.state !== "running") c.resume().then(soundNote, soundNote);
 }
 
 function stop() {
@@ -352,6 +439,7 @@ function stop() {
   Array.from($("sDots").children).forEach((d) => d.classList.remove("lit"));
   $("sRun").textContent = "Start";
   $("sBars").textContent = "bar 1";
+  soundNote();
 }
 
 /** Restart cleanly on any change of tempo or bar, so the count starts at 1. */
@@ -385,6 +473,7 @@ function open(i) {
   taps = [];
   $("stage").classList.remove("hide");
   paint();
+  soundNote();
   stop();
   if (bpm) start();
 }
@@ -419,6 +508,15 @@ function releaseWake() {
   try { if (wake) { wake.release(); wake = null; } } catch (e) {}
 }
 
+/* Every tap on the stage is another chance to get the sound through: a phone
+   can refuse the first one and allow the next, and the drummer should not have
+   to know that. */
+$("stage").addEventListener("pointerdown", () => {
+  if (noAudio || audioLive()) return;
+  primeAudio(audio());
+  setTimeout(soundNote, 120);
+});
+
 /* ---------- stage controls ---------- */
 $("sUp").onclick = () => step(1);
 $("sDown").onclick = () => step(-1);
@@ -438,6 +536,7 @@ $("sMute").onclick = () => {
   $("sMute").textContent = muted ? "Unmute" : "Mute";
   $("sMute").classList.toggle("on", muted);
   $("sMute").setAttribute("aria-pressed", String(muted));
+  soundNote();
 };
 
 $("sTap").onclick = () => {
@@ -487,7 +586,10 @@ document.addEventListener("keydown", (e) => {
    than sprinting to catch up. */
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) { if (run) stop(); releaseWake(); }
-  else if (!$("stage").classList.contains("hide")) keepAwake();
+  else if (!$("stage").classList.contains("hide")) {
+    keepAwake();
+    if (ctx && ctx.state !== "running") soundNote();
+  }
 });
 
 /* ---------- boot ---------- */
