@@ -14,6 +14,7 @@ import {
   mmss,
   songKey,
   tuningFor,
+  chordWords,
   normBpm,
   normBeats,
   parseTempos,
@@ -838,5 +839,55 @@ describe("tempo", () => {
     assert.ok(flashMs(200) >= 35);
     assert.ok(flashMs(200) < 60 / 200 * 1000);
     assert.equal(flashMs(0), 0);
+  });
+});
+
+describe("chords re-flowed for a narrow screen", () => {
+  it("keeps every chord over its own syllable", () => {
+    const segs = chordWords(
+      "E              A        B",
+      "Hey ho, let's go, they're forming in a line"
+    );
+    // Each chord starts a piece, and that piece begins at the chord's column.
+    assert.equal(segs[0].chord, "E");
+    assert.equal(segs[0].text.startsWith("Hey"), true);
+    const line = "Hey ho, let's go, they're forming in a line";
+    const a = segs.find((x) => x.chord === "A");
+    const b = segs.find((x) => x.chord === "B");
+    assert.equal(a.text[0], line[15]);   // the A sits at column 15
+    assert.equal(b.text[0], line[24]);   // and the B at column 24
+    // Nothing is lost or duplicated on the way through.
+    assert.equal(segs.map((x) => x.text).join(""), "Hey ho, let's go, they're forming in a line");
+  });
+
+  it("breaks at every word, so a long line wraps instead of running off", () => {
+    const segs = chordWords("G", "one two three four");
+    assert.equal(segs.length, 4);
+    assert.deepEqual(segs.map((x) => x.text), ["one ", "two ", "three ", "four"]);
+    assert.deepEqual(segs.map((x) => x.chord), ["G", "", "", ""]);
+  });
+
+  it("splits a word that a chord lands inside", () => {
+    const segs = chordWords("    D", "roundabout");
+    assert.deepEqual(segs, [{ chord: "", text: "roun" }, { chord: "D", text: "dabout" }]);
+  });
+
+  it("keeps a chord that hangs past the end of the words", () => {
+    const segs = chordWords("A            E   D", "stay clean");
+    assert.deepEqual(segs.slice(-2), [{ chord: "E", text: "" }, { chord: "D", text: "" }]);
+    assert.equal(segs[0].chord, "A");
+  });
+
+  it("handles a riff row with no words under it at all", () => {
+    assert.deepEqual(chordWords("|A5 |A5 | 8x", ""), [
+      { chord: "|A5", text: "" }, { chord: "|A5", text: "" },
+      { chord: "|", text: "" }, { chord: "8x", text: "" },
+    ]);
+  });
+
+  it("passes a plain lyric line straight through", () => {
+    assert.deepEqual(chordWords("", "just the words"), [{ chord: "", text: "just the words" }]);
+    assert.deepEqual(chordWords("", ""), []);
+    assert.deepEqual(chordWords(null, undefined), []);
   });
 });

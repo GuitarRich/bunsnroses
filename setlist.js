@@ -880,6 +880,49 @@ export function advanceScroll(plan, pos, dt, mult) {
   };
 }
 
+/**
+ * A chord row and the lyric row under it, cut into the pieces a phone can wrap.
+ *
+ * The monospace grid a chord sheet is written on only works while the line fits
+ * the screen: on a phone the long ones run off the edge, and a chord you have
+ * to swipe sideways to read is no use with a guitar in your hands. So the pair
+ * is broken at every chord and every word start — the finest cut that still
+ * keeps each chord sitting over its own syllable — and the page re-flows those
+ * pieces like words instead of scrolling them.
+ *
+ * Returns [{ chord, text }] in reading order. A chord landing past the end of
+ * the words — an outro riff, or a last chord after the final syllable — comes
+ * back with empty text rather than being dropped.
+ */
+export function chordWords(chordLine, wordLine) {
+  const text = String(wordLine == null ? "" : wordLine);
+  const chords = [];
+  let m;
+  const cre = /\S+/g;
+  while ((m = cre.exec(String(chordLine == null ? "" : chordLine))) !== null) {
+    chords.push({ tok: m[0], col: m.index });
+  }
+  if (!chords.length) return text === "" ? [] : [{ chord: "", text }];
+
+  const stops = new Set([0]);
+  const wre = /\S+/g;
+  while ((m = wre.exec(text)) !== null) stops.add(m.index);
+  chords.forEach((c) => {
+    if (c.col < text.length) stops.add(c.col);
+  });
+  const cols = [...stops].sort((a, b) => a - b);
+
+  const out = [];
+  cols.forEach((c, i) => {
+    const stop = i + 1 < cols.length ? cols[i + 1] : text.length;
+    const hit = chords.find((x) => x.col === c && x.col < text.length);
+    const piece = text.slice(c, stop);
+    if (hit || piece !== "") out.push({ chord: hit ? hit.tok : "", text: piece });
+  });
+  chords.filter((c) => c.col >= text.length).forEach((c) => out.push({ chord: c.tok, text: "" }));
+  return out;
+}
+
 /** Does this block need the monospace grid? Only chord rows require alignment. */
 export function hasChords(lines) {
   return (lines || []).some((l) => l && l.type === "chord");
@@ -952,6 +995,7 @@ const api = {
   expandChordPro,
   lyricLines,
   hasChords,
+  chordWords,
   scrollPlan,
   clampSpeed,
   advanceScroll,

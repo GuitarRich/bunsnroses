@@ -87,21 +87,36 @@
 #lb .words{margin-top:var(--s3);font-size:15px;line-height:1.75}
 #lb .block{break-inside:avoid;page-break-inside:avoid;margin-bottom:1.1em}
 #lb .block:last-child{margin-bottom:0}
-#lb .ln{white-space:pre-wrap}
+/* A line of plain words wraps like prose. "anywhere" is the backstop: one
+   unbroken run — a pasted URL, a run-on someone typed without spaces — would
+   otherwise be wider than the phone and drag the whole page sideways with it. */
+#lb .ln{white-space:pre-wrap;overflow-wrap:anywhere}
 #lb .ln-gap{height:.6em}
 /* A chorded verse is a grid, not prose: a chord only means anything sitting
-   exactly over its syllable. So the whole block goes monospace and scrolls
-   sideways rather than wrapping and losing the alignment. Blocks with no
-   chords keep the proportional reading face. */
-#lb .block.chorded{font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.3;
-  overflow-x:auto;overflow-y:hidden}
+   exactly over its syllable. The monospace face keeps that grid inside each
+   word; the row itself wraps word by word, so a long line runs down the screen
+   instead of off the side of it. Blocks with no chords keep the proportional
+   reading face. */
+#lb .block.chorded{font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.3}
 #lb .block.chorded .ln{white-space:pre}
+/* Flex, not inline-block: there is no whitespace between the pieces to break
+   at — the spacing lives inside them — so the row needs a layout that can wrap
+   between boxes on its own. */
+#lb .ln-pairs{display:flex;flex-wrap:wrap;align-items:flex-end;white-space:normal}
+/* A piece is as wide as the wider of its two halves: a chord over a one-letter
+   syllable needs the room, or it sits on top of the chord after it. */
+#lb .cw{display:block;flex:0 0 auto;width:max-content;max-width:100%;white-space:pre}
+#lb .cw-c{display:block;color:var(--lamp);font-weight:500;line-height:1.35;min-height:1.35em}
+#lb .cw-c:empty:before{content:"\00a0"}
+/* pre-wrap rather than pre so one absurdly long run can still break instead of
+   pushing the page out; there are no internal spaces in a piece to collapse. */
+#lb .cw-t{display:block;white-space:pre-wrap;overflow-wrap:anywhere}
 /* A chord row belongs to the line under it, so the air goes above the pair,
    not between the two halves of it — otherwise every chord looks equidistant
    between the line above and the line below and you can't tell which it's for. */
-#lb .block.chorded .ln-chord{margin-top:.75em}
-#lb .block.chorded .ln-chord:first-child,
-#lb .block.chorded .ln-section + .ln-chord{margin-top:0}
+#lb .block.chorded .ln-pairs{margin-top:.75em}
+#lb .block.chorded .ln-pairs:first-child,
+#lb .block.chorded .ln-section + .ln-pairs{margin-top:0}
 #lb .ln-chord{color:var(--lamp);font-weight:500}
 /* The chip's padding is cancelled by an equal negative margin, so the box can
    be seen without shifting the character it sits over — the chord row only
@@ -123,6 +138,19 @@
 
 /* ---------- the autoscroll deck ---------- */
 #lb .play{margin-left:auto}
+
+/* Back to the top. The book is one long scroll — seventeen songs of it — and
+   the contents live at the very top, so getting back there is the one move
+   worth a permanent button. It lifts clear of the scroll deck when that is up
+   rather than sitting under it. */
+#lb .totop{position:fixed;right:16px;bottom:16px;z-index:55;width:46px;height:46px;border-radius:50%;
+  background:var(--panel2);border:1px solid var(--line);color:var(--cream);font-size:19px;line-height:1;
+  box-shadow:0 8px 24px rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .16s,transform .16s,bottom .16s;
+  -webkit-tap-highlight-color:transparent}
+#lb .totop.show{opacity:1;pointer-events:auto;transform:none}
+#lb .totop:hover{border-color:var(--lamp);color:var(--lamp)}
+#lb .totop.lifted{bottom:86px}
 #lb .song.rolling{box-shadow:0 0 0 1px rgba(245,166,35,.45)}
 
 /* Fixed to the bottom so the controls stay under your thumb while the words
@@ -203,6 +231,9 @@
   #lb .deck .rate{order:6}
   #lb .deck .stop{order:8;margin-left:auto}
   #lb .edit textarea{min-height:150px;font-size:12px}
+  /* The deck is a full-width bar down here, so the button clears it by more. */
+  #lb .totop{right:10px;bottom:10px;width:44px;height:44px}
+  #lb .totop.lifted{bottom:118px}
 }
 
 /* One song per sheet of paper, black on white, no app furniture. */
@@ -234,7 +265,7 @@
   #lb .ln-chord{color:#000;font-weight:700}
   #lb .ln-section{color:#000}
   #lb .chip{background:none;padding:0;margin:0;color:#000}
-  #lb .pop,#lb .deck{display:none!important}
+  #lb .pop,#lb .deck,#lb .totop{display:none!important}
   #lb .song.rolling{box-shadow:none}
   #lb .edit,#lb .src{display:none!important}
 }
@@ -294,7 +325,7 @@ import { VERSION } from "./catalog.js";
 import {
   TARGET_SONGS, MAX_PER_ARTIST,
   scoreSongs, generateSet, mmss, tuningFor, lyricsFor, lyricBlocks, searchLinks,
-  lyricLines, hasChords, chordParts, scrollPlan, clampSpeed, advanceScroll,
+  lyricLines, hasChords, chordParts, chordWords, scrollPlan, clampSpeed, advanceScroll,
 } from "./setlist.js";
 import { chordShape, stringsFor } from "./chords.js";
 import { S, pull } from "./store.js";
@@ -346,21 +377,29 @@ function heading(r, i) {
 }
 
 /**
- * Every chord on a chord row becomes its own tappable chip. Whitespace between
- * the tokens is passed through untouched — it is what holds a chord over its
- * syllable — and the tokens themselves are escaped like everything else.
- *
- * Bar lines stay outside the chip: a riff written "|A5 |A5 | 8x" should offer
- * the A5, not the bar glued to it.
+ * One chord, as a tappable chip. Bar lines stay outside it: a riff written
+ * "|A5 |A5 | 8x" should offer the A5, not the bar glued to it.
  */
-function chips(line) {
-  return String(line).replace(/\S+/g, (tok) => {
-    const p = chordParts(tok);
-    if (!p.chord) return esc(tok);
-    return esc(p.lead) +
-      '<button class="chip" type="button" aria-expanded="false" data-chord="' +
-      esc(p.core) + '">' + esc(p.core) + '</button>' + esc(p.trail);
-  });
+function chip(tok) {
+  const p = chordParts(tok);
+  if (!p.chord) return esc(tok);
+  return esc(p.lead) +
+    '<button class="chip" type="button" aria-expanded="false" data-chord="' +
+    esc(p.core) + '">' + esc(p.core) + '</button>' + esc(p.trail);
+}
+
+/**
+ * A chord row and the words under it, rendered as one wrappable row.
+ *
+ * Each piece is a word (or the part of one a chord lands inside) carrying its
+ * own chord above it, so the row re-flows down the screen on a phone instead of
+ * running off the right-hand edge. Within a piece the monospace spacing is kept
+ * exactly, which is what holds the chord over its syllable.
+ */
+function pairRow(chordLine, wordLine) {
+  return '<div class="ln ln-pairs">' + chordWords(chordLine, wordLine).map((seg) =>
+    '<span class="cw"><span class="cw-c">' + (seg.chord ? chip(seg.chord) : "") +
+    '</span><span class="cw-t">' + esc(seg.text) + '</span></span>').join("") + '</div>';
 }
 
 /**
@@ -372,10 +411,21 @@ function chips(line) {
 function renderWords(text) {
   return '<div class="words">' + lyricBlocks(text).map((b) => {
     const lines = lyricLines(b);
-    return '<div class="block' + (hasChords(lines) ? " chorded" : "") + '">' +
-      lines.map((l) => '<div class="ln ln-' + l.type + '">' +
-        (l.type === "chord" ? chips(l.text) : esc(l.text)) + '</div>').join("") +
-      '</div>';
+    let html = "";
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (l.type !== "chord") {
+        html += '<div class="ln ln-' + l.type + '">' + esc(l.text) + '</div>';
+        continue;
+      }
+      // A chord row owns the words on the line below it, so the two are laid
+      // out as one thing rather than as two rows that have to stay in step.
+      const next = lines[i + 1];
+      const words = next && next.type === "words" ? next.text : "";
+      if (next && next.type === "words") i++;
+      html += pairRow(l.text, words);
+    }
+    return '<div class="block' + (hasChords(lines) ? " chorded" : "") + '">' + html + '</div>';
   }).join("") + '</div>';
 }
 
@@ -684,6 +734,34 @@ deck.innerHTML =
   '<button class="stop" type="button">Stop</button>';
 $("lb").appendChild(deck);
 
+/* ---------- back to the top ---------- */
+const toTop = document.createElement("button");
+toTop.className = "totop noprint";
+toTop.type = "button";
+toTop.setAttribute("aria-label", "Back to the top of the book");
+toTop.innerHTML = "&uarr;";
+toTop.onclick = () => {
+  const from = window.scrollY;
+  const easy = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: easy ? "smooth" : "auto" });
+  // A browser that ignores the smooth request — an unfocused tab does — would
+  // otherwise leave the button looking broken. If nothing has moved by now,
+  // nothing is going to: jump.
+  setTimeout(() => {
+    if (Math.abs(window.scrollY - from) < 4) window.scrollTo(0, 0);
+  }, 250);
+};
+$("lb").appendChild(toTop);
+
+/* It appears once there is something to come back from, and rides above the
+   scroll deck whenever that is up. */
+function placeToTop() {
+  toTop.classList.toggle("show", window.scrollY > 400);
+  toTop.classList.toggle("lifted", !deck.classList.contains("hide"));
+}
+window.addEventListener("scroll", placeToTop, { passive: true });
+placeToTop();
+
 const dName = deck.querySelector(".dname");
 const dLeft = deck.querySelector(".dleft");
 const dFill = deck.querySelector(".dbar i");
@@ -717,6 +795,7 @@ function stopRoll() {
   }
   roll = null;
   deck.classList.add("hide");
+  placeToTop();
   keepAwake(false);
 }
 
@@ -763,6 +842,7 @@ function startRoll(song) {
   dName.textContent = song.dataset.song || "";
   showRate();
   deck.classList.remove("hide");
+  placeToTop();
   song.classList.add("rolling");
 
   if (!plan.pxPerSec) {
