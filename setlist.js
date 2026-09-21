@@ -513,6 +513,142 @@ export function tuningFor(map, name, artist) {
   return SEED_TUNINGS[k] || "";
 }
 
+/* ---------- tempo: the click track ---------- */
+
+/** Column layout of the Tempos sheet tab. */
+export const TEMPO_HEADERS = ["Key", "Title", "Artist", "BPM", "Beats per bar"];
+
+export const MIN_BPM = 30;
+export const MAX_BPM = 300;
+export const DEFAULT_BEATS = 4;
+
+/** A playable tempo, or 0 for anything that isn't one. */
+export function normBpm(v) {
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(MAX_BPM, Math.max(MIN_BPM, n));
+}
+
+/** Beats in a bar: 3 for a waltz, 6 for Ramble On's feel, 4 for the rest. */
+export function normBeats(v) {
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_BEATS;
+  return Math.min(12, n);
+}
+
+/** Tempos sheet rows -> { key: { bpm, beats } }. */
+export function parseTempos(rows) {
+  const out = {};
+  (rows || []).forEach((r) => {
+    const key = String(r[0] || "").trim() || (r[1] ? songKey(r[1], r[2]) : "");
+    if (!key) return;
+    out[key] = { bpm: normBpm(r[3]), beats: normBeats(r[4]) };
+  });
+  return out;
+}
+
+/**
+ * Resolve a song's click tempo. The sheet wins when it holds a usable number,
+ * otherwise the catalog's own bpm carries it.
+ *
+ * This is deliberately the opposite of tuningFor's rule. A blank tuning cell is
+ * a real answer — "no special tuning" — but a blank BPM is not: a click with no
+ * tempo can't run, so a cleared cell falls back to the catalog rather than
+ * leaving the drummer with nothing.
+ */
+export function tempoFor(map, song) {
+  const s = song || {};
+  const k = songKey(s.name, s.artist);
+  const row = map && map[k];
+  const fromSheet = normBpm(row && row.bpm);
+  const fromSong = normBpm(s.bpm);
+  return {
+    bpm: fromSheet || fromSong,
+    beats: normBeats(row ? row.beats : DEFAULT_BEATS),
+    source: fromSheet ? "sheet" : fromSong ? "song" : "none",
+  };
+}
+
+/**
+ * Tempo from a run of taps: the gaps between them, averaged. Timestamps in ms.
+ *
+ * Gaps more than half again the median are dropped — a tap that lands late
+ * because someone lost the thread shouldn't drag the whole average down — and
+ * only the last 8 taps count, so the number chases a change of mind rather
+ * than averaging it away.
+ */
+export function tapTempo(times) {
+  const t = (times || []).map(Number).filter((n) => Number.isFinite(n)).slice(-8);
+  if (t.length < 2) return 0;
+  const gaps = [];
+  for (let i = 1; i < t.length; i++) {
+    const gap = t[i] - t[i - 1];
+    if (gap > 0) gaps.push(gap);
+  }
+  if (!gaps.length) return 0;
+  const sorted = gaps.slice().sort((a, b) => a - b);
+  const mid = sorted[Math.floor(sorted.length / 2)];
+  const kept = gaps.filter((g) => g <= mid * 1.5 && g >= mid * 0.5);
+  const use = kept.length ? kept : gaps;
+  const avg = use.reduce((a, b) => a + b, 0) / use.length;
+  return normBpm(60000 / avg);
+}
+
+/** Seconds per beat, and the bar length, for one tempo. */
+export function beatPlan(bpm, beats) {
+  const rate = normBpm(bpm);
+  const per = normBeats(beats);
+  return { bpm: rate, beats: per, spb: rate ? 60 / rate : 0, bar: rate ? (60 / rate) * per : 0 };
+}
+
+/** Which beat of which bar beat number n is. Beat 0 is bar 1, beat 1 — accented. */
+export function barPosition(n, beats) {
+  const per = normBeats(beats);
+  const i = Math.max(0, Math.floor(Number(n) || 0));
+  return { bar: Math.floor(i / per) + 1, beat: (i % per) + 1, accent: i % per === 0 };
+}
+
+/**
+ * Every beat falling in the window (from, to], as absolute times on the same
+ * clock the caller passed in.
+ *
+ * The click schedules ahead of itself rather than firing on a timer: a setTimeout
+ * loop drifts, and a drifting click is worse than no click. The caller hands
+ * this a slice of audio-clock time, gets back the beats due in it, and books
+ * them. Kept out of the loop so the arithmetic is testable without a browser —
+ * same reason advanceScroll is its own function.
+ */
+export function beatsDue(plan, from, to, startAt) {
+  const spb = plan && plan.spb;
+  if (!spb) return [];
+  const zero = Number(startAt) || 0;
+  const a = Math.max(zero, Number(from) || 0);
+  const b = Number(to) || 0;
+  if (b <= a) return [];
+  const out = [];
+  let n = Math.max(0, Math.ceil((a - zero) / spb));
+  // A beat sitting exactly on the window's opening edge was booked by the last
+  // pass — except at the very start, where beat 0 is the count-in downbeat and
+  // this is the first pass to see it.
+  if (a > zero && zero + n * spb <= a) n++;
+  for (; zero + n * spb <= b; n++) {
+    out.push({ n, at: zero + n * spb, ...barPosition(n, plan.beats) });
+    if (out.length > 64) break;        // a stalled tab shouldn't book a minute of clicks
+  }
+  return out;
+}
+
+/**
+ * How long the lamp stays lit. Short enough to read as a flash at 60bpm, and
+ * still a visible gap at 200 — at fast tempos it's the dark that carries the
+ * beat, not the light.
+ */
+export function flashMs(bpm) {
+  const spb = beatPlan(bpm, DEFAULT_BEATS).spb;
+  if (!spb) return 0;
+  return Math.round(Math.min(110, Math.max(35, spb * 1000 * 0.32)));
+}
+
 /** Column layout of the Lyrics sheet tab. */
 export const LYRICS_HEADERS = ["Key", "Title", "Artist", "Lyrics"];
 
@@ -792,6 +928,19 @@ const api = {
   PROGRESS_BASE,
   TUNING_SEEDS,
   tuningFor,
+  TEMPO_HEADERS,
+  MIN_BPM,
+  MAX_BPM,
+  DEFAULT_BEATS,
+  normBpm,
+  normBeats,
+  parseTempos,
+  tempoFor,
+  tapTempo,
+  beatPlan,
+  barPosition,
+  beatsDue,
+  flashMs,
   LYRICS_HEADERS,
   parseLyrics,
   lyricsFor,

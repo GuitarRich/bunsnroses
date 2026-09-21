@@ -81,11 +81,12 @@ export const TRACKS=[
 
 export const BAND = ["Rich", "Joel", "Anders", "Pete"];
 export const OWNER = "Rich";            // only this person edits songs and the setlist
-export const VERSION = "v29";
+export const VERSION = "v30";
 export const LABEL = { 3: "Must play", 2: "Yes", 1: "Maybe", 0: "Pass" };
 export const NB = TRACKS.length;        // built-in count (code positions never change)
 
 export const CHANGES = {
+ "v30":"Click track — a new page that turns the phone into a flashing red lamp at the song's tempo, bright on the 1, with a click you can mute. Tap the tempo in yourself and Save writes it to the sheet's new Tempos tab for everyone",
  "v29":"Ten songs added to the pool — Ramble On, You Really Got Me, Summer of '69, Welcome to the Jungle, Runnin' Down a Dream, In Bloom, Zombie, Learn to Fly, I Believe in a Thing Called Love and Do I Wanna Know?",
  "v25":"Lyric book header now matches the other two pages exactly — full-width bar, lit lamp, and a real saved indicator",
  "v24":"Actually usable on a phone — the pages were missing the viewport tag, so mobiles were shrinking the desktop layout to fit. Lyric book laid out for a phone too",

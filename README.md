@@ -1,16 +1,21 @@
-# Bun's & Roses — Setlist Vote (v18)
+# Bun's & Roses — Setlist Vote (v30)
 
-Two static pages + serverless functions on Vercel. Everything lives in one Google Sheet.
+Four static pages + serverless functions on Vercel. Everything lives in one Google Sheet.
 
     index.html          voting — one song at a time
     results.html        the setlist, standings, pooling, diagnostics
+    lyrics.html         the lyric book — words, chords, autoscroll, print
+    click.html          the click track — a flashing lamp and a click at the song's tempo
     catalog.js          the song catalog, band roster, version log
-    setlist.js          scoring, selection, ordering, plan parsing
-    store.js            shared state and server access for both pages
+    setlist.js          scoring, selection, ordering, plan parsing, tempo and scroll engines
+    chords.js           chord shapes, drawn in each song's own tuning
+    store.js            shared state and server access for every page
     app.css             shared styles
     dev-server.js       offline dev stub — no Google credentials needed
     api/votes.js        GET everything / POST one voter
     api/plan.js         GET/POST the setlist and learning status
+    api/lyrics.js       GET the words / POST one song's words
+    api/tempos.js       POST one song's BPM and beats per bar
     api/health.js       setup diagnostics
     api/_sheets.js      Google Sheets helper
 
@@ -72,6 +77,8 @@ progress, Know song — and the row shows one pip per member.
 | `Tunings` | Key, Title, Artist, Tuning. Edit freely — the sheet wins over the built-in defaults, and a blank cell means "no tuning". |
 | `Setlist` | Key, Title, Artist, State, Position. `State` is `in`, `out` or blank; `Position` is the manual running order. Editable by hand. |
 | `Progress` | One row per song, one column per band member. Values: `not-started`, `in-progress`, `know-it`. Adding a member is just a new column. |
+| `Lyrics` | Key, Title, Artist, Lyrics. The only source of words — paste them here or from the lyric book. Chords can be in the same cell. |
+| `Tempos` | Key, Title, Artist, BPM, Beats per bar. Seeded from the catalog's own BPM; the click page's Tap and Save write here. A blank BPM falls back to the catalog — unlike `Tunings`, a cleared cell is not an answer, because a click needs a number. |
 | `Settings` | `Song limit` — how many songs the set holds. Editable here or from the page; out-of-range values fall back to the default. |
 
 `Votes` is the source of truth. `Grid` is for reading and arguing over — edits there are overwritten.

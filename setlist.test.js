@@ -14,6 +14,15 @@ import {
   mmss,
   songKey,
   tuningFor,
+  normBpm,
+  normBeats,
+  parseTempos,
+  tempoFor,
+  tapTempo,
+  beatPlan,
+  barPosition,
+  beatsDue,
+  flashMs,
   normStatus,
   statusOf,
   statusTally,
@@ -742,5 +751,92 @@ describe("autoscroll frames", () => {
     for (const dt of [-1, NaN, undefined, null, "x"]) {
       assert.equal(advanceScroll(plan, plan.from, dt, 1).pos, plan.from, String(dt));
     }
+  });
+});
+
+describe("tempo", () => {
+  it("keeps a bpm inside what a band can play, or calls it no tempo", () => {
+    assert.equal(normBpm(120), 120);
+    assert.equal(normBpm("143.6"), 144);
+    assert.equal(normBpm(5), 30);          // clamped up
+    assert.equal(normBpm(900), 300);       // clamped down
+    for (const junk of [0, -1, "", null, undefined, NaN, "fast"]) {
+      assert.equal(normBpm(junk), 0, String(junk));
+    }
+  });
+
+  it("defaults a bar to four beats", () => {
+    assert.equal(normBeats(3), 3);
+    assert.equal(normBeats(6), 6);
+    assert.equal(normBeats(""), 4);
+    assert.equal(normBeats(0), 4);
+    assert.equal(normBeats(99), 12);
+  });
+
+  it("reads the Tempos tab, key or title+artist", () => {
+    const map = parseTempos([
+      ["riffraff-acdc", "Riff Raff", "AC/DC", "185", "4"],
+      ["", "Ramble On", "Led Zeppelin", "100", "6"],
+      ["", "", "", "", ""],
+    ]);
+    assert.deepEqual(map["riffraff-acdc"], { bpm: 185, beats: 4 });
+    assert.deepEqual(map[songKey("Ramble On", "Led Zeppelin")], { bpm: 100, beats: 6 });
+    assert.equal(Object.keys(map).length, 2);
+  });
+
+  it("lets the sheet win, but falls back to the catalog when the cell is blank", () => {
+    const song = { name: "Riff Raff", artist: "AC/DC", bpm: 185 };
+    const sheet = { "riffraff-acdc": { bpm: 178, beats: 4 } };
+    assert.deepEqual(tempoFor(sheet, song), { bpm: 178, beats: 4, source: "sheet" });
+
+    // Blank BPM is not an answer the way a blank tuning is — a click needs a
+    // number, so the catalog carries it.
+    const cleared = { "riffraff-acdc": { bpm: 0, beats: 3 } };
+    assert.deepEqual(tempoFor(cleared, song), { bpm: 185, beats: 3, source: "song" });
+    assert.deepEqual(tempoFor({}, song), { bpm: 185, beats: 4, source: "song" });
+    assert.equal(tempoFor({}, { name: "Nowt", artist: "Nobody" }).source, "none");
+  });
+
+  it("works a tempo out of taps, ignoring the one that lands late", () => {
+    const steady = [0, 500, 1000, 1500, 2000];          // 120bpm
+    assert.equal(tapTempo(steady), 120);
+    assert.equal(tapTempo([0, 500, 1000, 2400, 2900, 3400]), 120);  // one dropped beat
+    assert.equal(tapTempo([1000]), 0);
+    assert.equal(tapTempo([]), 0);
+    assert.equal(tapTempo([0, 0, 0]), 0);
+  });
+
+  it("counts bars, accenting beat one", () => {
+    assert.deepEqual(barPosition(0, 4), { bar: 1, beat: 1, accent: true });
+    assert.deepEqual(barPosition(3, 4), { bar: 1, beat: 4, accent: false });
+    assert.deepEqual(barPosition(4, 4), { bar: 2, beat: 1, accent: true });
+    assert.deepEqual(barPosition(7, 3), { bar: 3, beat: 2, accent: false });
+  });
+
+  it("books the beats due in a window, and never books one twice", () => {
+    const plan = beatPlan(120, 4);       // half a second a beat
+    assert.equal(plan.spb, 0.5);
+    assert.equal(plan.bar, 2);
+
+    const first = beatsDue(plan, 10, 10.6, 10);
+    assert.deepEqual(first.map((b) => b.n), [0, 1]);
+    assert.equal(first[0].accent, true);
+    assert.equal(first[1].beat, 2);
+
+    // The next window starts where the last ended; the beat on the seam is not
+    // handed out again.
+    const second = beatsDue(plan, 10.6, 11.1, 10);
+    assert.deepEqual(second.map((b) => b.n), [2]);
+    assert.equal(beatsDue(plan, 11.0, 11.0, 10).length, 0);
+    assert.equal(beatsDue(beatPlan(0, 4), 0, 10, 0).length, 0);
+    // A tab that slept for an hour comes back to a handful of beats, not 400k.
+    assert.ok(beatsDue(plan, 10, 3610, 10).length <= 65);
+  });
+
+  it("flashes long enough to see, short enough to leave a gap", () => {
+    assert.ok(flashMs(60) <= 110);
+    assert.ok(flashMs(200) >= 35);
+    assert.ok(flashMs(200) < 60 / 200 * 1000);
+    assert.equal(flashMs(0), 0);
   });
 });

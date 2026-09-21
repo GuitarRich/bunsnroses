@@ -12,7 +12,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseSetlist, parseProgress, parseSettings, parseLyrics, normStatus, normLimit, TARGET_SONGS, songKey } from "./setlist.js";
+import { parseSetlist, parseProgress, parseSettings, parseLyrics, normStatus, normLimit, TARGET_SONGS, songKey, parseTempos, normBpm, normBeats } from "./setlist.js";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 8900;
@@ -32,6 +32,7 @@ let setlistRows = [];   // rows as the Setlist tab would hold them
 let progressRows = [];  // rows as the Progress tab would hold them
 let settingsRows = [["Song limit", TARGET_SONGS]];
 let lyricRows = [];        // rows as the Lyrics tab would hold them
+let tempoRows = [];        // rows as the Tempos tab would hold them
 
 const plan = () => ({
   ...parseSetlist(setlistRows),
@@ -83,7 +84,7 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (p === "/api/health") {
-      return json(res, 200, { ok: true, sheetTitle: "(offline dev stub)", tabs: ["Votes", "AddedSongs", "Grid", "Tunings", "Setlist", "Progress", "Settings", "Lyrics"], env: { OFFLINE: true }, hint: "This is dev-server.js, not the real sheet." });
+      return json(res, 200, { ok: true, sheetTitle: "(offline dev stub)", tabs: ["Votes", "AddedSongs", "Grid", "Tunings", "Setlist", "Progress", "Settings", "Lyrics", "Tempos"], env: { OFFLINE: true }, hint: "This is dev-server.js, not the real sheet." });
     }
 
     if (p === "/api/votes") {
@@ -98,7 +99,7 @@ const server = http.createServer(async (req, res) => {
         voters[b.name] = { votes: clean, ts: Number(b.ts) || Date.now() };
         if (Array.isArray(b.custom) && b.name.trim().toLowerCase() === OWNER) custom = b.custom;
       }
-      return json(res, 200, { ok: true, voters, custom, tunings: {}, plan: plan() });
+      return json(res, 200, { ok: true, voters, custom, tunings: {}, tempos: parseTempos(tempoRows), plan: plan() });
     }
 
     if (p === "/api/lyrics") {
@@ -120,6 +121,20 @@ const server = http.createServer(async (req, res) => {
         });
       }
       return json(res, 200, { ok: true, lyrics: parseLyrics(lyricRows) });
+    }
+
+    if (p === "/api/tempos") {
+      if (req.method === "POST") {
+        const b = await readBody(req);
+        if (!b.name) return json(res, 400, { ok: false, error: "Missing song." });
+        const bpm = normBpm(b.bpm);
+        if (!bpm) return json(res, 400, { ok: false, error: "That isn't a playable tempo." });
+        const k = songKey(b.name, b.artist);
+        const row = [k, b.name, b.artist || "", bpm, normBeats(b.beats)];
+        const i = tempoRows.findIndex((r) => r[0] === k);
+        if (i >= 0) tempoRows[i] = row; else tempoRows.push(row);
+      }
+      return json(res, 200, { ok: true, tempos: parseTempos(tempoRows) });
     }
 
     if (p === "/api/plan") {

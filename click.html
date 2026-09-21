@@ -1,0 +1,511 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bun's &amp; Roses — Click track</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="./app.css" rel="stylesheet">
+
+<style>
+#ck{background:var(--stage);color:var(--cream);font-family:'Barlow',system-ui,sans-serif;
+  min-height:100vh;padding-bottom:var(--s6);font-size:16px;line-height:1.5}
+#ck .wrap{max-width:1240px;margin:0 auto;padding:0 var(--s4)}
+#ck .disp{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.04em;line-height:1}
+#ck .mono{font-family:'IBM Plex Mono',monospace}
+#ck .hide{display:none!important}
+#ck button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+#ck button:focus-visible,#ck a:focus-visible{outline:2px solid var(--lamp);outline-offset:3px;border-radius:3px}
+
+/* Same header as the other three pages. */
+#ck header{border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--panel2),var(--panel));
+  padding:var(--s4) 0 var(--s3);margin-bottom:var(--s4);position:relative}
+#ck header:after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--lamp),transparent);opacity:.5}
+#ck .plate{display:flex;align-items:center;gap:var(--s3)}
+#ck .lamp{width:17px;height:17px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 35% 30%,#FFD98A,var(--lamp) 55%,#8A5A0B);box-shadow:0 0 16px rgba(245,166,35,.7)}
+#ck h1{font-size:32px;font-weight:700;flex:1;line-height:1;font-family:'Barlow Condensed',sans-serif;
+  text-transform:uppercase;letter-spacing:.04em}
+#ck h1 small{display:block;font-size:11px;letter-spacing:.28em;color:var(--dim);font-weight:600;margin-top:8px}
+#ck h1 small span{color:var(--lamp)}
+#ck .status{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
+  font-family:'Barlow Condensed',sans-serif;padding:7px 12px;border:1px solid var(--line);border-radius:99px;
+  color:var(--dim);white-space:nowrap}
+#ck .status.ok{color:var(--ok);border-color:rgba(127,166,80,.45)}
+#ck .status.warn{color:var(--lamp);border-color:rgba(245,166,35,.45)}
+
+#ck nav{display:flex;gap:2px;margin-top:var(--s3);flex-wrap:wrap}
+#ck nav a{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.16em;
+  font-size:12px;font-weight:600;color:var(--dim);text-decoration:none;padding:9px 14px;border-radius:var(--r);
+  border:1px solid transparent;transition:color .12s,background .12s,border-color .12s}
+#ck nav a:hover{color:var(--cream);background:rgba(237,230,214,.05)}
+#ck nav a[aria-current="page"]{color:var(--lamp);border-color:rgba(245,166,35,.4);background:rgba(245,166,35,.08)}
+
+#ck .bar{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center;margin-bottom:var(--s4)}
+#ck .btn{border:1px solid var(--line);border-radius:var(--r);padding:9px 15px;font-size:13px;font-weight:600;
+  background:var(--panel2);color:var(--cream)}
+#ck .btn:hover{border-color:var(--lamp);color:var(--lamp)}
+#ck .btn.go{background:var(--lamp);color:#1B1710;border-color:var(--lamp)}
+#ck .btn.go:hover{filter:brightness(1.08);color:#1B1710}
+#ck .btn.on{border-color:var(--lamp);color:var(--lamp);background:rgba(245,166,35,.1)}
+#ck .btn[disabled]{opacity:.45;cursor:default}
+#ck a.btn{text-decoration:none;display:inline-block}
+#ck .spacer{flex:1}
+#ck .note{font-size:14px;color:var(--dim);line-height:1.65;max-width:70ch;margin-top:var(--s4)}
+#ck .msg{border:1px solid rgba(245,166,35,.35);background:rgba(245,166,35,.07);border-radius:var(--r);
+  padding:var(--s3);margin-bottom:var(--s4);font-size:14px;line-height:1.6}
+#ck .msg b{color:var(--lamp)}
+#ck .msg.fail{border-color:rgba(228,87,46,.45);background:rgba(228,87,46,.08)}
+#ck .msg.fail b{color:var(--hot)}
+
+/* ---------- the song list ---------- */
+#ck .rows{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);overflow:hidden}
+#ck .row{display:flex;align-items:center;gap:var(--s3);padding:10px var(--s3);border-top:1px solid var(--line2)}
+#ck .row:first-child{border-top:none}
+#ck .row:hover{background:rgba(237,230,214,.03)}
+#ck .row .no{font-family:'IBM Plex Mono',monospace;color:var(--faint);font-size:13px;flex:none;width:26px}
+#ck .row .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
+#ck .row .name i{color:var(--dim);font-style:normal;font-size:13px}
+#ck .row .bpm{font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--lamp);flex:none;
+  min-width:74px;text-align:right}
+#ck .row .bpm u{text-decoration:none;color:var(--faint);font-size:11px;margin-left:4px}
+#ck .row .sig{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--dim);flex:none;width:34px;text-align:right}
+#ck .row .btn{flex:none}
+#ck .row.none .bpm{color:var(--hot)}
+
+/* ---------- the stage: one flashing lamp, nothing else ----------
+   The drummer is looking at this from behind a kit, in the dark, at an angle.
+   It is a full-screen panel rather than a widget on the page for that reason:
+   the whole phone becomes the light. */
+#ck .stage{position:fixed;inset:0;z-index:60;background:#0B0A08;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:var(--s4);padding:max(var(--s4),env(safe-area-inset-top)) var(--s4)
+  max(var(--s4),env(safe-area-inset-bottom));text-align:center;
+  transition:background 40ms linear}
+#ck .stage.beat{background:#5B1208}
+#ck .stage.beat.one{background:#E4110B}
+#ck .stage .song{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.03em;
+  font-size:clamp(22px,5vw,40px);font-weight:700;line-height:1.05}
+#ck .stage .by{color:var(--dim);font-size:15px;margin-top:6px}
+#ck .stage .big{font-family:'IBM Plex Mono',monospace;font-size:clamp(72px,22vw,190px);line-height:.9;
+  font-weight:500;letter-spacing:-.03em}
+#ck .stage .big u{text-decoration:none;font-size:14px;letter-spacing:.3em;color:var(--dim);
+  display:block;margin-top:10px;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
+#ck .stage .dots{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+#ck .stage .dot{width:16px;height:16px;border-radius:50%;background:rgba(237,230,214,.16)}
+#ck .stage .dot.lit{background:var(--cream)}
+#ck .stage .dot.lit.one{background:#FFF;box-shadow:0 0 22px rgba(255,255,255,.75)}
+#ck .stage .dot.one{background:rgba(237,230,214,.34)}
+#ck .stage .ctl{display:flex;gap:var(--s2);flex-wrap:wrap;justify-content:center;align-items:center}
+#ck .stage .btn{background:rgba(237,230,214,.07);border-color:rgba(237,230,214,.22);padding:12px 18px;font-size:14px}
+#ck .stage .step{font-family:'IBM Plex Mono',monospace;font-size:20px;min-width:52px}
+#ck .stage .bars{font-family:'IBM Plex Mono',monospace;color:var(--dim);font-size:14px;letter-spacing:.1em}
+#ck .stage .hint{color:var(--faint);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  font-family:'Barlow Condensed',sans-serif}
+#ck .stage .saved{color:var(--ok)}
+
+@media (max-width:620px){
+  #ck .row{flex-wrap:wrap;gap:var(--s2)}
+  #ck .row .name{flex:1 0 60%}
+  #ck .stage{gap:var(--s3)}
+}
+</style>
+
+<div id="ck">
+  <header><div class="wrap">
+      <div class="plate">
+        <div class="lamp"></div>
+        <h1>Bun's &amp; Roses<small>Click track &middot; <span id="ver"></span></small></h1>
+        <div class="status" id="status">Checking</div>
+      </div>
+      <nav>
+        <a href="./index.html">Vote</a>
+        <a href="./results.html">Setlist</a>
+        <a href="./lyrics.html">Lyrics</a>
+        <a href="./click.html" aria-current="page">Click</a>
+      </nav>
+  </div></header>
+
+  <div class="wrap">
+    <div id="gate" class="hide">
+      <div class="msg"><b>Open the setlist first.</b> The click track uses the same name and access
+        code as the setlist page, so sign in there and come back.</div>
+      <a class="btn go" href="./results.html">Go to the setlist</a>
+    </div>
+
+    <div id="main" class="hide">
+      <div class="bar">
+        <button class="btn on" id="scope" aria-pressed="true">The set</button>
+        <span class="spacer"></span>
+        <a class="btn" href="./results.html">Back to the setlist</a>
+      </div>
+      <div id="msg" class="msg hide"></div>
+      <div id="rows" class="rows"></div>
+      <p class="note">
+        Tap <b>Click</b> and the whole screen becomes the lamp — a dim red flash on every beat,
+        a bright one on the <b>1</b>, with a click through the speaker you can mute. Prop the
+        phone on the kit and count yourself in.
+        <b>The tempo is the band's, not the record's:</b> hit <b>Tap</b> four times in time and
+        it takes the tempo from your hands, or nudge it with &minus; and +. <b>Save</b> writes it
+        to the <b>Tempos</b> tab of the sheet, so everyone else's click runs at the same speed —
+        you can type into that tab directly instead if you'd rather. Anything not saved there
+        falls back to the song's catalog BPM.
+      </p>
+    </div>
+  </div>
+
+  <!-- built once, filled per song -->
+  <div class="stage hide" id="stage" role="dialog" aria-modal="true" aria-label="Click track">
+    <div>
+      <div class="song" id="sSong"></div>
+      <div class="by" id="sBy"></div>
+    </div>
+    <div class="big" id="sBpm">—<u id="sSrc"></u></div>
+    <div class="dots" id="sDots"></div>
+    <div class="bars mono" id="sBars">bar 1</div>
+    <div class="ctl">
+      <button class="btn" id="sDown" aria-label="Slower">&minus;</button>
+      <button class="btn step" id="sTap">Tap</button>
+      <button class="btn" id="sUp" aria-label="Faster">+</button>
+      <button class="btn" id="sSig">4/4</button>
+      <button class="btn" id="sMute" aria-pressed="false">Mute</button>
+    </div>
+    <div class="ctl">
+      <button class="btn" id="sPrev">&larr; Previous</button>
+      <button class="btn go" id="sRun">Stop</button>
+      <button class="btn" id="sNext">Next &rarr;</button>
+      <button class="btn" id="sSave">Save to sheet</button>
+      <button class="btn" id="sClose">Done</button>
+    </div>
+    <div class="hint" id="sHint">Space start &middot; &uarr;&darr; tempo &middot; T tap &middot; Esc out</div>
+  </div>
+</div>
+
+<script type="module">
+import { VERSION } from "./catalog.js";
+import {
+  TARGET_SONGS, MAX_PER_ARTIST,
+  scoreSongs, generateSet, esc,
+  tempoFor, tapTempo, beatPlan, beatsDue, flashMs, MIN_BPM, MAX_BPM,
+} from "./setlist.js";
+import { S, pull, saveTempo } from "./store.js";
+
+const $ = (id) => document.getElementById(id);
+
+$("ver").textContent = VERSION;
+
+let ok = null;            // null = still checking
+let showAll = false;      // the set, or every song we know
+let songs = [];           // what the list and the stage's next/previous walk
+
+function setStatus(word) {
+  const el = $("status");
+  if (word) { el.textContent = word; el.className = "status"; return; }
+  if (ok === null) { el.textContent = "Checking"; el.className = "status"; return; }
+  el.textContent = ok ? "Saved" : "Not saving";
+  el.className = ok ? "status ok" : "status warn";
+}
+
+function say(html, fail) {
+  const el = $("msg");
+  el.className = "msg" + (fail ? " fail" : "");
+  el.innerHTML = html;
+  el.classList.remove("hide");
+}
+
+/* The same set the setlist and lyric pages build, from the same inputs. */
+function buildSet() {
+  return generateSet(scoreSongs(S.list, S.pool), {
+    targetSongs: S.plan.songLimit || TARGET_SONGS,
+    maxPerArtist: MAX_PER_ARTIST,
+    include: Object.keys(S.plan.states).filter((k) => S.plan.states[k] === "in"),
+    exclude: Object.keys(S.plan.states).filter((k) => S.plan.states[k] === "out"),
+    orderKeys: S.plan.order,
+  });
+}
+
+function listSongs() {
+  if (showAll) return S.list.slice().sort((a, b) => (a.name > b.name ? 1 : -1));
+  const gen = buildSet();
+  if (!gen.ok) { say("<b>No set yet.</b> " + esc(gen.error) + " Showing every song instead.", true); return S.list.slice(); }
+  return gen.ordered;
+}
+
+function draw() {
+  songs = listSongs();
+  $("rows").innerHTML = songs.map((s, i) => {
+    const t = tempoFor(S.tempos, s);
+    return '<div class="row' + (t.bpm ? "" : " none") + '" data-i="' + i + '">' +
+      '<span class="no">' + String(i + 1).padStart(2, "0") + '</span>' +
+      '<span class="name">' + esc(s.name) + ' <i>' + esc(s.artist) + '</i></span>' +
+      '<span class="bpm">' + (t.bpm || "—") +
+        '<u>' + (t.source === "sheet" ? "set" : t.bpm ? "est" : "none") + '</u></span>' +
+      '<span class="sig">' + t.beats + '/4</span>' +
+      '<button class="btn" type="button">Click</button>' +
+    '</div>';
+  }).join("");
+}
+
+$("rows").addEventListener("click", (e) => {
+  const row = e.target.closest(".row");
+  if (!row) return;
+  open(Number(row.dataset.i));
+});
+
+$("scope").onclick = () => {
+  showAll = !showAll;
+  $("scope").textContent = showAll ? "Every song" : "The set";
+  $("scope").classList.toggle("on", !showAll);
+  $("scope").setAttribute("aria-pressed", String(!showAll));
+  draw();
+};
+
+/* ---------- the click itself ----------
+   Beats are booked against the audio clock a fraction of a second before they
+   sound. A setInterval firing the click directly drifts — tens of milliseconds
+   a minute is audible to a drummer, and it compounds over a four-minute song —
+   so the timer only ever asks "what falls in the next 120ms?" and books it.
+   setlist.js does that arithmetic; this loop only plays what comes back. */
+const LOOKAHEAD = 0.12;   // seconds of beats booked at a time
+const TICK = 25;          // ms between passes
+
+let ctx = null;           // AudioContext, made on the first start (needs a gesture)
+let run = null;           // the running click, or null
+let cur = -1;             // index into songs
+let bpm = 0, beats = 4;
+let muted = false;
+let taps = [];
+let wake = null;
+let timer = null;
+
+function audio() {
+  if (!ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+  }
+  if (ctx.state === "suspended") ctx.resume();
+  return ctx;
+}
+
+/** One click: a short pitched blip, higher and louder on the 1. */
+function blip(at, accent) {
+  if (muted || !ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.frequency.value = accent ? 1600 : 950;
+  gain.gain.setValueAtTime(accent ? 0.5 : 0.28, at);
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.05);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(at);
+  osc.stop(at + 0.06);
+}
+
+function dots() {
+  $("sDots").innerHTML = Array.from({ length: beats }, (_, i) =>
+    '<span class="dot' + (i === 0 ? " one" : "") + '" data-b="' + i + '"></span>').join("");
+}
+
+/** Light the lamp and the matching dot, for as long as the tempo allows. */
+function flash(pos) {
+  const st = $("stage");
+  const hold = flashMs(bpm);
+  st.classList.add("beat");
+  st.classList.toggle("one", pos.accent);
+  const dot = $("sDots").children[pos.beat - 1];
+  if (dot) dot.classList.add("lit");
+  $("sBars").textContent = "bar " + pos.bar + " · beat " + pos.beat;
+  setTimeout(() => {
+    st.classList.remove("beat", "one");
+    if (dot) dot.classList.remove("lit");
+  }, hold);
+}
+
+function tick() {
+  if (!run || !ctx) return;
+  const now = ctx.currentTime;
+  const due = beatsDue(run.plan, run.at, now + LOOKAHEAD, run.zero);
+  due.forEach((b) => {
+    blip(b.at, b.accent);
+    // The lamp is driven off the same booked time as the sound, so the two
+    // can't slide apart.
+    setTimeout(() => flash(b), Math.max(0, (b.at - ctx.currentTime) * 1000));
+  });
+  run.at = now + LOOKAHEAD;
+}
+
+function start() {
+  const c = audio();
+  if (!c) { say("<b>This browser won't make a click.</b> The lamp still flashes.", true); }
+  if (!bpm) return;
+  run = { plan: beatPlan(bpm, beats), zero: (c ? c.currentTime : 0) + 0.12, at: 0 };
+  run.at = run.zero;
+  if (timer) clearInterval(timer);
+  timer = setInterval(tick, TICK);
+  $("sRun").textContent = "Stop";
+  keepAwake();
+}
+
+function stop() {
+  run = null;
+  if (timer) { clearInterval(timer); timer = null; }
+  $("stage").classList.remove("beat", "one");
+  Array.from($("sDots").children).forEach((d) => d.classList.remove("lit"));
+  $("sRun").textContent = "Start";
+  $("sBars").textContent = "bar 1";
+}
+
+/** Restart cleanly on any change of tempo or bar, so the count starts at 1. */
+function retime() {
+  const was = !!run;
+  stop();
+  paint();
+  if (was) start();
+}
+
+function paint() {
+  const s = songs[cur] || {};
+  const saved = tempoFor(S.tempos, s);
+  $("sSong").textContent = s.name || "";
+  $("sBy").textContent = s.artist || "";
+  $("sBpm").firstChild.nodeValue = bpm || "—";
+  $("sSrc").textContent = !bpm ? "no tempo" :
+    saved.source === "sheet" && saved.bpm === bpm ? "bpm · from the sheet" :
+    saved.bpm === bpm ? "bpm · catalog estimate" : "bpm · not saved";
+  $("sSig").textContent = beats + "/4";
+  $("sSave").classList.toggle("hide", saved.source === "sheet" && saved.bpm === bpm && saved.beats === beats);
+  $("sSave").textContent = "Save to sheet";
+  dots();
+}
+
+function open(i) {
+  cur = Math.max(0, Math.min(songs.length - 1, i));
+  const t = tempoFor(S.tempos, songs[cur]);
+  bpm = t.bpm;
+  beats = t.beats;
+  taps = [];
+  $("stage").classList.remove("hide");
+  paint();
+  stop();
+  if (bpm) start();
+}
+
+function close() {
+  stop();
+  releaseWake();
+  $("stage").classList.add("hide");
+  draw();
+}
+
+function step(by) {
+  if (!bpm) bpm = 120;
+  bpm = Math.min(MAX_BPM, Math.max(MIN_BPM, bpm + by));
+  retime();
+}
+
+function move(by) {
+  if (!songs.length) return;
+  open((cur + by + songs.length) % songs.length);
+}
+
+/* Screen wake lock, where the browser has it: a phone that sleeps halfway
+   through the song is no use on a kit. It is dropped when the tab is hidden,
+   so it gets asked for again on the way back. */
+async function keepAwake() {
+  try {
+    if (navigator.wakeLock && !wake) wake = await navigator.wakeLock.request("screen");
+  } catch (e) { /* battery saver, or no support — the click still runs */ }
+}
+function releaseWake() {
+  try { if (wake) { wake.release(); wake = null; } } catch (e) {}
+}
+
+/* ---------- stage controls ---------- */
+$("sUp").onclick = () => step(1);
+$("sDown").onclick = () => step(-1);
+$("sRun").onclick = () => (run ? stop() : start());
+$("sNext").onclick = () => move(1);
+$("sPrev").onclick = () => move(-1);
+$("sClose").onclick = close;
+
+$("sSig").onclick = () => {
+  const ring = [4, 3, 6, 5, 7, 2];
+  beats = ring[(ring.indexOf(beats) + 1) % ring.length];
+  retime();
+};
+
+$("sMute").onclick = () => {
+  muted = !muted;
+  $("sMute").textContent = muted ? "Unmute" : "Mute";
+  $("sMute").classList.toggle("on", muted);
+  $("sMute").setAttribute("aria-pressed", String(muted));
+};
+
+$("sTap").onclick = () => {
+  const now = Date.now();
+  // A long gap means a fresh count-in rather than a slow tempo.
+  if (taps.length && now - taps[taps.length - 1] > 2500) taps = [];
+  taps.push(now);
+  const n = tapTempo(taps);
+  $("sTap").textContent = taps.length < 2 ? "Again" : "Tap";
+  if (n) { bpm = n; retime(); }
+};
+
+$("sSave").onclick = async () => {
+  const s = songs[cur];
+  if (!s || !bpm) return;
+  const btn = $("sSave");
+  btn.disabled = true;
+  btn.textContent = "Saving";
+  const done = await saveTempo(s, bpm, beats);
+  ok = done;
+  setStatus();
+  btn.disabled = false;
+  if (done) {
+    btn.textContent = "Saved";
+    btn.classList.add("saved");
+    setTimeout(() => { btn.classList.remove("saved"); paint(); }, 1200);
+  } else {
+    btn.textContent = "Couldn't save";
+  }
+};
+
+document.addEventListener("keydown", (e) => {
+  if ($("stage").classList.contains("hide")) return;
+  if (/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  const k = e.key;
+  if (k === " ") { e.preventDefault(); run ? stop() : start(); }
+  else if (k === "Escape") close();
+  else if (k === "ArrowUp") { e.preventDefault(); step(1); }
+  else if (k === "ArrowDown") { e.preventDefault(); step(-1); }
+  else if (k === "ArrowRight") move(1);
+  else if (k === "ArrowLeft") move(-1);
+  else if (k === "t" || k === "T") $("sTap").click();
+  else if (k === "m" || k === "M") $("sMute").click();
+});
+
+/* A backgrounded tab gets no timers worth trusting; come back stopped rather
+   than sprinting to catch up. */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { if (run) stop(); releaseWake(); }
+  else if (!$("stage").classList.contains("hide")) keepAwake();
+});
+
+/* ---------- boot ---------- */
+async function boot() {
+  let name = "", secret = "";
+  try { name = localStorage.getItem("br_name") || ""; secret = localStorage.getItem("br_secret") || ""; } catch (e) {}
+  if (!name) { $("gate").classList.remove("hide"); return; }
+
+  S.me = name;
+  S.secret = secret;
+  $("main").classList.remove("hide");
+
+  ok = await pull();
+  if (!ok) say("<b>Couldn't load the songs" + (S.lastErr ? " — " + esc(S.lastErr) : "") + ".</b> " +
+    "The tempos below are the catalog's own.", true);
+  S.pool[S.me] = S.myVotes;
+  setStatus();
+  draw();
+}
+boot();
+</script>

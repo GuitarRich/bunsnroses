@@ -9,11 +9,16 @@ import {
   parseSettings,
   parseLyrics,
   LYRICS_HEADERS,
+  TEMPO_HEADERS,
+  parseTempos,
+  normBpm,
+  normBeats,
   normLimit,
   TARGET_SONGS,
   PROGRESS_BASE,
   SETTINGS_HEADERS,
 } from "../setlist.js";
+import { TRACKS } from "../catalog.js";
 
 const VOTES_TAB = "Votes";
 const SONGS_TAB = "AddedSongs";
@@ -23,6 +28,7 @@ const SETLIST_TAB = "Setlist";
 const PROGRESS_TAB = "Progress";
 const SETTINGS_TAB = "Settings";
 const LYRICS_TAB = "Lyrics";
+const TEMPOS_TAB = "Tempos";
 const SONG_HEADERS = ["Key", "Title", "Artist", "Seconds", "Set", "Energy", "Tags", "Lead"];
 const TUNING_HEADERS = ["Key", "Title", "Artist", "Tuning"];
 const SETLIST_HEADERS = ["Key", "Title", "Artist", "State", "Position"];
@@ -57,7 +63,7 @@ export async function ensureTabs() {
   const id = sheetId();
   const meta = await sheets.spreadsheets.get({ spreadsheetId: id });
   const have = new Set(meta.data.sheets.map((s) => s.properties.title));
-  const wanted = [VOTES_TAB, SONGS_TAB, GRID_TAB, TUNINGS_TAB, SETLIST_TAB, PROGRESS_TAB, SETTINGS_TAB, LYRICS_TAB];
+  const wanted = [VOTES_TAB, SONGS_TAB, GRID_TAB, TUNINGS_TAB, SETLIST_TAB, PROGRESS_TAB, SETTINGS_TAB, LYRICS_TAB, TEMPOS_TAB];
   const missing = wanted.filter((t) => !have.has(t));
   if (missing.length) {
     await sheets.spreadsheets.batchUpdate({
@@ -114,6 +120,14 @@ export async function ensureTabs() {
         requestBody: { values: [SETTINGS_HEADERS, ["Song limit", TARGET_SONGS]] },
       });
     }
+    if (missing.includes(TEMPOS_TAB)) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: id,
+        range: `${TEMPOS_TAB}!A1:E1`,
+        valueInputOption: "RAW",
+        requestBody: { values: [TEMPO_HEADERS] },
+      });
+    }
     if (missing.includes(LYRICS_TAB)) {
       await sheets.spreadsheets.values.update({
         spreadsheetId: id,
@@ -124,7 +138,7 @@ export async function ensureTabs() {
     }
   }
   await ensureSongMetaHeaders(sheets, id);
-  return { VOTES_TAB, SONGS_TAB, GRID_TAB, SETLIST_TAB, PROGRESS_TAB, LYRICS_TAB };
+  return { VOTES_TAB, SONGS_TAB, GRID_TAB, SETLIST_TAB, PROGRESS_TAB, LYRICS_TAB, TEMPOS_TAB };
 }
 
 async function ensureSongMetaHeaders(sheets, id) {
@@ -156,6 +170,7 @@ export async function readAll() {
       `${SETLIST_TAB}!A2:E500`,
       `${PROGRESS_TAB}!A1:Z500`,
       `${SETTINGS_TAB}!A2:B50`,
+      `${TEMPOS_TAB}!A2:E500`,
     ],
   });
   const [
@@ -165,6 +180,7 @@ export async function readAll() {
     setlistRows = [],
     progressRows = [],
     settingsRows = [],
+    tempoRows = [],
   ] = res.data.valueRanges.map((r) => r.values || []);
 
   const voters = {};
@@ -209,10 +225,21 @@ export async function readAll() {
     tunings
   );
 
+  // Every catalog song gets a row seeded from its own bpm, so the tab reads as
+  // a full, editable list rather than a sparse set of corrections.
+  const tempos = await syncTempos(
+    [
+      ...TRACKS.map((t) => ({ name: t[0], artist: t[1], bpm: t[4] })),
+      ...custom.map((c) => ({ name: c.name, artist: c.artist, bpm: 0 })),
+    ],
+    parseTempos(tempoRows)
+  );
+
   return {
     voters,
     custom,
     tunings: seeded,
+    tempos,
     plan: {
       ...parseSetlist(setlistRows),
       progress: parseProgress(progressRows),
@@ -452,6 +479,81 @@ export async function syncTunings(entries, existing) {
     out[r[0]] = r[3];
   });
   return out;
+}
+
+/**
+ * Append a row to the Tempos tab for any song it doesn't know yet, seeded with
+ * the catalog's bpm. Existing rows are never touched — once a row is there the
+ * sheet owns that song's tempo, same contract as syncTunings.
+ */
+export async function syncTempos(entries, existing) {
+  const sheets = sheetsClient();
+  const id = sheetId();
+  const have = existing || {};
+  const fresh = [];
+  const seen = new Set(Object.keys(have));
+  for (const e of entries || []) {
+    const key = songKey(e.name, e.artist);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    fresh.push([key, e.name, e.artist || "", normBpm(e.bpm) || "", normBeats(e.beats)]);
+  }
+  if (fresh.length) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: id,
+      range: `${TEMPOS_TAB}!A2:E2`,
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: fresh },
+    });
+  }
+  const out = { ...have };
+  fresh.forEach((r) => {
+    out[r[0]] = { bpm: normBpm(r[3]), beats: normBeats(r[4]) };
+  });
+  return out;
+}
+
+/**
+ * Write one song's tempo. Finds the row by key and rewrites only that row, so
+ * two people tapping different songs at once can't tread on each other.
+ */
+export async function writeTempo(key, title, artist, bpm, beats) {
+  await ensureTabs();
+  const sheets = sheetsClient();
+  const id = sheetId();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: id,
+    range: `${TEMPOS_TAB}!A2:E500`,
+  });
+  const rows = res.data.values || [];
+  const idx = rows.findIndex((r) => {
+    const k = String(r[0] || "").trim() || (r[1] ? songKey(r[1], r[2]) : "");
+    return k === key;
+  });
+  const row = [key, title || "", artist || "", normBpm(bpm) || "", normBeats(beats)];
+
+  if (idx >= 0) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: id,
+      range: `${TEMPOS_TAB}!A${idx + 2}:E${idx + 2}`,
+      valueInputOption: "RAW",
+      requestBody: { values: [row] },
+    });
+  } else {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: id,
+      range: `${TEMPOS_TAB}!A2:E2`,
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: [row] },
+    });
+  }
+  const res2 = await sheets.spreadsheets.values.get({
+    spreadsheetId: id,
+    range: `${TEMPOS_TAB}!A2:E500`,
+  });
+  return parseTempos(res2.data.values || []);
 }
 
 /** Upsert one voter's row, keyed by name (case-insensitive). */

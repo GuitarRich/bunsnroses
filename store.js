@@ -7,10 +7,13 @@
  * has to re-derive it.
  */
 import { TRACKS, BAND, OWNER, VERSION, NB, keyOf, buildSongs } from "./catalog.js";
-import { parseLen, voteWeight, normStatus, normLimit, TARGET_SONGS } from "./setlist.js";
+import {
+  parseLen, voteWeight, normStatus, normLimit, TARGET_SONGS, normBpm, normBeats, songKey,
+} from "./setlist.js";
 
 export const VOTES_API = "/api/votes";
 export const PLAN_API = "/api/plan";
+export const TEMPOS_API = "/api/tempos";
 
 export const S = {
   me: null,
@@ -20,6 +23,7 @@ export const S = {
   poolTs: {},
   custom: [],
   tunings: {},
+  tempos: {},
   plan: { states: {}, order: [], progress: {}, songLimit: TARGET_SONGS },
   list: buildSongs([]),
   storageOK: null,
@@ -116,6 +120,7 @@ export function mergeDefs(defs) {
 function absorb(data) {
   const v = data.voters || {};
   if (data.tunings) S.tunings = data.tunings;
+  if (data.tempos) S.tempos = data.tempos;
   if (data.plan) {
     S.plan = {
       states: data.plan.states || {},
@@ -280,6 +285,42 @@ export function saveSetlist(states, order, limit) {
   log("setlist saved: " + Object.keys(states).length + " overrides, " + S.plan.order.length +
     " ordered, limit " + S.plan.songLimit);
   return postPlan(body);
+}
+
+/**
+ * Anyone: set one song's click tempo, tapped out or nudged on the click page.
+ * Goes straight to the Tempos tab so the whole band gets the corrected number,
+ * not just the phone it was tapped on.
+ */
+export async function saveTempo(song, bpm, beats) {
+  const rate = normBpm(bpm);
+  if (!rate) return false;
+  const body = {
+    secret: S.secret,
+    name: song.name,
+    artist: song.artist || "",
+    bpm: rate,
+    beats: normBeats(beats),
+  };
+  // Show the new number now; the sheet's reply confirms it.
+  S.tempos = { ...S.tempos, [songKey(song.name, song.artist)]: { bpm: rate, beats: normBeats(beats) } };
+  try {
+    const r = await fetch(TEMPOS_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || "HTTP " + r.status);
+    if (d.tempos) S.tempos = d.tempos;
+    ok("");
+    log("tempo " + song.name + " -> " + rate + " bpm");
+    return true;
+  } catch (e) {
+    log("tempo save failed: " + (e.message || e));
+    ok(e.message || String(e));
+    return false;
+  }
 }
 
 /** Anyone: set your own learning status for one song. */
